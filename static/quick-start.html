@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Matt Realty Desk — Quick Start & Daily Plan</title>
+  <meta name="description" content="A simple guide and daily planning worksheet for Matt Realty Desk.">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23d5a24a'/%3E%3Cpath d='M12 31 32 14l20 17v21H38V38H26v14H12Z' fill='%2318384e'/%3E%3C/svg%3E">
+  <style>
+    :root{--navy:#18384e;--blue:#1d5f8a;--sky:#e8f1f7;--gold:#d5a24a;--ink:#182331;--muted:#65717f;--paper:#fff;--bg:#f2f5f7;--line:#d9e1e7;--ok:#2f7a52;--shadow:0 12px 34px rgba(24,35,49,.09);font:16px/1.55 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink)}*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bg)}button,input,textarea{font:inherit}button{cursor:pointer}.top{background:var(--navy);color:#fff}.top-inner{max-width:1120px;margin:auto;padding:28px 28px 32px;display:grid;grid-template-columns:1fr auto;gap:24px;align-items:center}.brand{display:flex;align-items:center;gap:14px}.mark{width:52px;height:52px;border-radius:13px;background:var(--gold);display:grid;place-items:center;font-size:27px}.eyebrow{text-transform:uppercase;letter-spacing:.12em;font-size:.76rem;font-weight:800;color:#63a7d0;margin:0 0 5px}.top .eyebrow{color:#9fd0ef}h1{font:700 clamp(2rem,5vw,3.3rem)/1.05 Georgia,serif;margin:0}.subtitle{color:#cbdce8;margin:8px 0 0;max-width:680px}.app-link,.action{display:inline-block;border:0;border-radius:9px;padding:11px 15px;background:var(--blue);color:#fff;text-decoration:none;font-weight:780}.top .app-link{background:var(--gold);color:#1b2d39}.wrap{max-width:1120px;margin:0 auto;padding:30px 28px 70px}.jump{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:24px}.jump a{color:var(--navy);background:#fff;border:1px solid var(--line);border-radius:99px;padding:7px 12px;text-decoration:none;font-size:.88rem;font-weight:700}.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:18px}.card{background:var(--paper);border:1px solid var(--line);border-radius:15px;padding:24px;box-shadow:var(--shadow)}.span-7{grid-column:span 7}.span-5{grid-column:span 5}.span-12{grid-column:1/-1}h2{font:700 1.48rem Georgia,serif;margin:0 0 10px}h3{margin:22px 0 8px;font-size:1rem}.muted{color:var(--muted)}.steps{counter-reset:step;display:grid;gap:13px;margin:20px 0 0}.step{display:grid;grid-template-columns:34px 1fr;gap:12px;align-items:start}.step:before{counter-increment:step;content:counter(step);width:32px;height:32px;border-radius:50%;display:grid;place-items:center;background:var(--sky);color:var(--blue);font-weight:850}.step strong,.step span{display:block}.step span{color:var(--muted);font-size:.92rem}.key{display:inline-block;border:1px solid #bfc9d0;border-bottom-width:3px;border-radius:6px;background:#fff;padding:2px 8px;font-weight:800;color:var(--navy)}.sample{border-left:5px solid var(--gold);background:#fff9e9;padding:16px 18px;border-radius:8px}.sample p{margin:5px 0}.checklist{display:grid;gap:10px}.checkrow{display:flex;gap:11px;align-items:flex-start;padding:11px 0;border-bottom:1px solid var(--line)}.checkrow:last-child{border:0}.checkrow input{width:21px;height:21px;margin-top:2px}.checkrow label{flex:1}.planner-head{display:flex;justify-content:space-between;align-items:center;gap:15px;margin-bottom:18px}.date{border:1px solid var(--line);padding:9px 11px;border-radius:8px}.field{display:grid;gap:6px;margin-bottom:13px}.field label{font-size:.84rem;font-weight:800;color:var(--muted)}input[type=text],textarea{width:100%;border:1px solid #c8d2d9;background:#fff;border-radius:9px;padding:11px 12px;color:var(--ink)}textarea{min-height:105px;resize:vertical}.task-entry{display:flex;gap:8px}.task-entry input{flex:1}.task-list{display:grid;gap:8px;margin:12px 0}.user-task{display:flex;align-items:center;gap:9px;background:var(--bg);border-radius:9px;padding:9px 11px}.user-task span{flex:1}.user-task.done span{text-decoration:line-through;color:var(--muted)}.remove{border:0;background:transparent;color:#9b463d;font-size:1.1rem}.actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:16px}.secondary{border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:9px;padding:10px 14px;font-weight:750}.status{color:var(--ok);font-weight:750;min-height:1.5em;margin-top:10px}.automation-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}.automation-grid label{display:flex;gap:9px;background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:11px}.automation-grid input{width:19px;height:19px}.callout{background:var(--sky);border:1px solid #c8dce9;border-radius:11px;padding:15px 17px}.callout strong{color:var(--blue)}.shortcuts{display:grid;grid-template-columns:190px 1fr;gap:10px;margin:0}.shortcuts dt{font-weight:800}.shortcuts dd{margin:0;color:var(--muted)}.footer{text-align:center;color:var(--muted);margin-top:30px;font-size:.87rem}@media(max-width:800px){.top-inner{grid-template-columns:1fr}.span-7,.span-5{grid-column:1/-1}.automation-grid{grid-template-columns:1fr}.shortcuts{grid-template-columns:1fr}.shortcuts dd{margin-bottom:8px}}@media(max-width:520px){.top-inner,.wrap{padding-left:17px;padding-right:17px}.card{padding:19px}.planner-head{align-items:flex-start;flex-direction:column}.task-entry{display:grid}.top .app-link{width:100%;text-align:center}}@media print{body{background:#fff}.top{background:#fff;color:var(--ink);border-bottom:3px solid var(--navy)}.top .subtitle{color:var(--muted)}.top .eyebrow{color:var(--blue)}.top .app-link,.jump,.actions,.remove,.task-entry{display:none}.wrap{padding:20px 0}.card{box-shadow:none;break-inside:avoid}.grid{display:block}.card{margin-bottom:14px}.planner,.automation{break-inside:auto}}
+  </style>
+  <style>.step .key{display:inline-block}</style>
+</head>
+<body>
+  <header class="top">
+    <div class="top-inner">
+      <div class="brand"><div class="mark" aria-hidden="true">⌂</div><div><p class="eyebrow">Keep this guide handy</p><h1>Matt Realty Desk</h1><p class="subtitle">A quick start, daily plan, and a place to notice the work we can automate later.</p></div></div>
+      <a class="app-link" href="http://127.0.0.1:3010">Open Realty Desk</a>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <nav class="jump" aria-label="Guide sections"><a href="#open">Open it</a><a href="#example">Try one task</a><a href="#daily">Daily plan</a><a href="#automate">Automation ideas</a><a href="#voice">Voice & contacts</a></nav>
+
+    <div class="grid">
+      <section class="card span-7" id="open">
+        <p class="eyebrow">Start here</p><h2>Open it on the Dell</h2>
+        <div class="steps">
+          <div class="step"><div><strong>Press <span class="key">Super</span> + <span class="key">Space</span></strong><span>Super is the key with the Windows logo.</span></div></div>
+          <div class="step"><div><strong>Type “Matt Realty Desk”</strong><span>The application should appear at the top of the list.</span></div></div>
+          <div class="step"><div><strong>Press Enter</strong><span>The Today screen opens in the browser. If it is already open, use Alt + Tab to find it.</span></div></div>
+        </div>
+        <h3>If the launcher feels easier</h3><p class="muted">Use the app search every time. You do not need a terminal, a password, or a command to open Realty Desk.</p>
+      </section>
+
+      <section class="card span-5" id="example">
+        <p class="eyebrow">Practice once</p><h2>A sample task</h2>
+        <div class="sample"><p><strong>Situation:</strong> You met Jamie Carter at an open house.</p><p><strong>Contact:</strong> Add Jamie as a Buyer, stage New.</p><p><strong>Reminder:</strong> “Call Jamie about three-bedroom homes” due tomorrow.</p><p><strong>After the call:</strong> Add one short note and choose the next follow-up date.</p></div>
+        <p class="muted">That is the core habit: person → note → next action. The system becomes valuable when every conversation ends with a next date.</p>
+      </section>
+
+      <section class="card span-12 planner" id="daily">
+        <div class="planner-head"><div><p class="eyebrow">Use each morning</p><h2>My plan for today</h2></div><input class="date" id="planDate" type="date" aria-label="Plan date"></div>
+        <div class="grid">
+          <div class="span-5">
+            <div class="field"><label for="priority1">Most important outcome</label><input id="priority1" type="text" placeholder="Example: Call every overdue lead"></div>
+            <div class="field"><label for="priority2">Second priority</label><input id="priority2" type="text" placeholder="Example: Follow up with the closing attorney"></div>
+            <div class="field"><label for="priority3">If time allows</label><input id="priority3" type="text" placeholder="Example: Draft Friday's market update"></div>
+          </div>
+          <div class="span-7">
+            <div class="checklist">
+              <div class="checkrow"><input id="routine1" type="checkbox"><label for="routine1"><strong>Clear Today’s follow-ups</strong><br><span class="muted">Call, text, or email the people already due.</span></label></div>
+              <div class="checkrow"><input id="routine2" type="checkbox"><label for="routine2"><strong>Enter every new lead</strong><br><span class="muted">Include how they found you and the next follow-up date.</span></label></div>
+              <div class="checkrow"><input id="routine3" type="checkbox"><label for="routine3"><strong>Finish call notes</strong><br><span class="muted">One useful sentence is better than a perfect paragraph.</span></label></div>
+            </div>
+            <div class="field"><label for="newTask">Another task for today</label><div class="task-entry"><input id="newTask" type="text" placeholder="Type a general task — no private client information"><button class="action" id="addTask" type="button">Add task</button></div></div>
+            <div class="task-list" id="taskList" aria-live="polite"></div>
+          </div>
+        </div>
+        <div class="callout"><strong>Keep client details in Realty Desk.</strong> This worksheet is for general priorities. Names, phone numbers, private notes, and appointment details belong in the main app.</div>
+        <div class="actions"><button class="action" id="savePlan" type="button">Save this plan</button><button class="secondary" id="printPlan" type="button">Print</button><button class="secondary" id="downloadPlan" type="button">Download a copy</button><button class="secondary" id="clearPlan" type="button">Start a fresh day</button></div><div class="status" id="saveStatus" role="status" aria-live="polite"></div>
+      </section>
+
+      <section class="card span-7 automation" id="automate">
+        <p class="eyebrow">Notice repetition first</p><h2>What should we automate later?</h2><p class="muted">Check anything that would genuinely save time. We should automate a stable routine—not a process that is still changing.</p>
+        <div class="automation-grid">
+          <label><input type="checkbox" data-auto="Morning follow-up summary">Morning follow-up summary</label>
+          <label><input type="checkbox" data-auto="New-lead follow-up sequence">New-lead follow-up sequence</label>
+          <label><input type="checkbox" data-auto="Stale lead reminder">Stale lead reminder</label>
+          <label><input type="checkbox" data-auto="Weekly email draft">Weekly email draft</label>
+          <label><input type="checkbox" data-auto="Closing anniversary reminder">Closing anniversary reminder</label>
+          <label><input type="checkbox" data-auto="Birthday check-in reminder">Birthday check-in reminder</label>
+          <label><input type="checkbox" data-auto="Postal mailer list">Postal mailer list</label>
+          <label><input type="checkbox" data-auto="Weekly contact cleanup">Weekly contact cleanup</label>
+        </div>
+        <div class="field" style="margin-top:15px"><label for="repeatWork">What do I keep repeating?</label><textarea id="repeatWork" placeholder="Example: Every Friday I look for buyers I have not contacted in seven days, then write the same kind of check-in message."></textarea></div>
+        <div class="field"><label for="automationRule">What must always require my approval?</label><textarea id="automationRule" placeholder="Recommended: sending email or texts, deleting records, and changing a client’s stage."></textarea></div>
+      </section>
+
+      <section class="card span-5">
+        <p class="eyebrow">A sensible order</p><h2>How automation should grow</h2>
+        <div class="steps">
+          <div class="step"><div><strong>First: reminders</strong><span>The computer notices who is due and shows the list.</span></div></div>
+          <div class="step"><div><strong>Then: drafts</strong><span>It prepares a message, but Matt reviews it.</span></div></div>
+          <div class="step"><div><strong>Later: confirmed actions</strong><span>Voice requests can create records only after showing exactly what will change.</span></div></div>
+        </div>
+        <div class="callout" style="margin-top:18px"><strong>Recommended boundary:</strong> the assistant may organize, remind, search, and draft. A person approves anything that contacts a client or materially changes a record.</div>
+      </section>
+
+      <section class="card span-7" id="voice">
+        <p class="eyebrow">Talk instead of type</p><h2>Voice shortcuts</h2>
+        <dl class="shortcuts"><dt><span class="key">F9</span></dt><dd>Hold while speaking, then release to type the words.</dd><dt><span class="key">Super</span> + <span class="key">Ctrl</span> + <span class="key">X</span></dt><dd>Start or stop continuous dictation.</dd><dt><span class="key">Super</span> + <span class="key">Ctrl</span> + <span class="key">M</span></dt><dd>Start or stop meeting transcription.</dd></dl>
+        <p class="muted">Use voice inside contact notes, reminders, campaign drafts, or the Assistant box.</p>
+      </section>
+
+      <section class="card span-5">
+        <p class="eyebrow">Bring people in</p><h2>Import contacts</h2>
+        <p><strong>From iPhone:</strong> Contacts → Lists → press and hold a list → Export. Move the `.vcf` file to the Dell.</p>
+        <p><strong>From Excel or PC:</strong> Save or export the contacts as a CSV UTF-8 file.</p>
+        <p><strong>In Realty Desk:</strong> Contacts → Import contacts. Select the file and review the count.</p>
+        <p class="muted">Matching phone numbers and email addresses are skipped. Nobody is automatically subscribed to email.</p>
+      </section>
+
+      <section class="card span-12">
+        <p class="eyebrow">The whole routine</p><h2>Keep it simple</h2>
+        <p><strong>Morning:</strong> open Today and clear the due list. <strong>During the day:</strong> add each real lead and leave a short note after contact. <strong>End of day:</strong> make sure every active person has a next follow-up date. <strong>Once a week:</strong> draft one useful client update and write down anything repetitive.</p>
+      </section>
+    </div>
+    <p class="footer">This guide stores its worksheet only in this browser. Realty Desk stores the real contact records and backs them up nightly.</p>
+  </main>
+
+  <script>
+    const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+    const ids=['planDate','priority1','priority2','priority3','routine1','routine2','routine3','repeatWork','automationRule'];
+    let tasks=[];
+    const today=()=>new Date().toLocaleDateString('en-CA');
+    function snapshot(){const data={tasks,automations:{}};for(const id of ids){const el=$('#'+id);data[id]=el.type==='checkbox'?el.checked:el.value}$$('[data-auto]').forEach(el=>data.automations[el.dataset.auto]=el.checked);return data}
+    function restore(data){if(!data)return;for(const id of ids){const el=$('#'+id);if(data[id]!==undefined)el.type==='checkbox'?el.checked=!!data[id]:el.value=data[id]}tasks=Array.isArray(data.tasks)?data.tasks:[];$$('[data-auto]').forEach(el=>el.checked=!!data.automations?.[el.dataset.auto]);renderTasks()}
+    function renderTasks(){$('#taskList').innerHTML=tasks.map((t,i)=>`<div class="user-task ${t.done?'done':''}"><input type="checkbox" data-task-check="${i}" ${t.done?'checked':''} aria-label="Mark task complete"><span>${escapeHtml(t.text)}</span><button class="remove" data-task-remove="${i}" type="button" aria-label="Remove task">×</button></div>`).join('');$$('[data-task-check]').forEach(el=>el.onchange=()=>{tasks[+el.dataset.taskCheck].done=el.checked;renderTasks()});$$('[data-task-remove]').forEach(el=>el.onclick=()=>{tasks.splice(+el.dataset.taskRemove,1);renderTasks()})}
+    function escapeHtml(v){return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+    function addTask(text){text=String(text||'').trim();if(!text)return false;tasks.push({text:text.slice(0,200),done:false});renderTasks();return true}
+    $('#planDate').value=today();
+    try{restore(JSON.parse(localStorage.getItem('matt-realty-guide-plan')))}catch{}
+    $('#addTask').onclick=()=>{if(addTask($('#newTask').value))$('#newTask').value=''};
+    $('#newTask').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();$('#addTask').click()}};
+    $('#savePlan').onclick=()=>{localStorage.setItem('matt-realty-guide-plan',JSON.stringify(snapshot()));$('#saveStatus').textContent='Saved on this computer.';setTimeout(()=>$('#saveStatus').textContent='',3000)};
+    $('#printPlan').onclick=()=>window.print();
+    $('#clearPlan').onclick=()=>{if(!confirm('Clear this worksheet and start a fresh day?'))return;localStorage.removeItem('matt-realty-guide-plan');location.reload()};
+    $('#downloadPlan').onclick=()=>{const d=snapshot(),autos=Object.entries(d.automations).filter(([,v])=>v).map(([k])=>'• '+k).join('\n')||'None selected';const custom=tasks.map(t=>`${t.done?'☑':'☐'} ${t.text}`).join('\n')||'None';const text=`MATT REALTY — DAILY PLAN\nDate: ${d.planDate}\n\nPRIORITIES\n1. ${d.priority1||''}\n2. ${d.priority2||''}\n3. ${d.priority3||''}\n\nADDITIONAL TASKS\n${custom}\n\nAUTOMATION IDEAS\n${autos}\n\nREPETITIVE WORK\n${d.repeatWork||''}\n\nACTIONS REQUIRING APPROVAL\n${d.automationRule||''}\n`;const blob=new Blob([text],{type:'text/plain'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`Matt-Realty-Plan-${d.planDate||today()}.txt`;a.click();URL.revokeObjectURL(a.href)};
+    function registerWebMCP(){const mc=document.modelContext;if(!mc?.registerTool)return;const tools=[{name:'read_daily_plan',title:'Read daily plan',description:'Read the general daily priorities and tasks in the visible Matt Realty quick-start worksheet.',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true,untrustedContentHint:true},execute:()=>snapshot()},{name:'add_general_daily_task',title:'Add general daily task',description:'Add a non-sensitive general task to the visible daily worksheet. Client-specific information belongs in Realty Desk.',inputSchema:{type:'object',properties:{task:{type:'string'}},required:['task'],additionalProperties:false},annotations:{readOnlyHint:false,untrustedContentHint:false},execute:({task})=>{if(typeof task!=='string'||!task.trim())throw new Error('task is required');addTask(task);return{status:'added',task:task.trim()}}}];for(const tool of tools){try{Promise.resolve(mc.registerTool(tool)).catch(()=>{})}catch{}}}
+    registerWebMCP();
+  </script>
+</body>
+</html>

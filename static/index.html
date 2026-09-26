@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Matt Realty Desk</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/theme.css">
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="brand"><img src="/favicon.svg" alt=""><div><strong>Matt Realty</strong><span>Relationship Command</span></div></div>
+    <nav aria-label="Main navigation">
+      <button class="nav active" data-view="today">⌂ <span>Today</span></button>
+      <button class="nav" data-view="contacts">♙ <span>Contacts</span></button>
+      <button class="nav" data-view="followups">✓ <span>Follow-ups</span></button>
+      <button class="nav" data-view="campaigns">✉ <span>Campaigns</span></button>
+      <button class="nav" data-view="assistant">✦ <span>Assistant</span></button>
+      <button class="nav" data-view="help">? <span>Help</span></button>
+    </nav>
+    <div class="sidebar-foot"><span class="system-label">LOCAL SYSTEM</span><div class="privacy"><span class="dot"></span> Private on this Dell</div></div>
+  </aside>
+  <main>
+    <header><div><p class="eyebrow" id="dateLabel"></p><h1 id="pageTitle">Today</h1></div><div class="header-actions"><span class="status-chip"><i></i> Ready</span><button class="primary" id="addContactTop">+ Add contact</button></div></header>
+    <div id="notice" role="status" aria-live="polite"></div>
+
+    <section class="view active" id="todayView">
+      <div class="mission-strip"><div><span class="mission-kicker">RELATIONSHIP SIGNAL</span><strong>Your day, organized around people.</strong></div><div class="signal-orbit" aria-hidden="true"><i></i><i></i><i></i><span>M</span></div></div>
+      <div class="stats">
+        <article data-signal="teal"><span>People</span><strong id="statContacts">0</strong><small>In your network</small></article><article data-signal="violet"><span>Active clients</span><strong id="statActive">0</strong><small>Moving now</small></article><article data-signal="gold"><span>Due today</span><strong id="statDue">0</strong><small>Today’s focus</small></article><article data-signal="rose"><span>Follow-ups due</span><strong id="statFollowups">0</strong><small>Need attention</small></article>
+      </div>
+      <div class="grid two"><section class="panel"><div class="panel-head"><div><p class="eyebrow">Start here</p><h2>Today’s follow-ups</h2></div><button class="link" data-go="followups">See all</button></div><div id="todayTasks" class="list empty">Nothing due yet.</div></section>
+      <section class="panel warm"><p class="eyebrow">Quick actions</p><h2>Keep the day moving</h2><div class="quick"><button id="quickContact"><span>＋</span>Add a new lead</button><button id="quickTask"><span>✓</span>Set a reminder</button><button data-go="assistant"><span>✦</span>Draft a message</button><button data-go="campaigns"><span>↗</span>Plan a mailer</button></div></section></div>
+      <section class="panel guide"><div><p class="eyebrow">Simple weekly rhythm</p><h2>Three habits are enough</h2></div><ol><li><strong>Every morning:</strong> clear Today’s follow-ups.</li><li><strong>After each call:</strong> add a short note and next date.</li><li><strong>Once a week:</strong> draft one useful client update.</li></ol></section>
+    </section>
+
+    <section class="view" id="contactsView"><div class="toolbar"><input id="contactSearch" type="search" placeholder="Search by name, phone, or email"><select id="stageFilter"><option value="">All stages</option><option>New</option><option>Nurturing</option><option>Active</option><option>Under Contract</option><option>Closed</option><option>Inactive</option></select><button class="ghost" id="importContacts">Import contacts</button><a class="button ghost" href="/api/export/contacts.csv">Export CSV</a></div><div class="panel table-wrap"><table><thead><tr><th>Name</th><th>Stage</th><th>Type</th><th>Next follow-up</th><th>Phone / email</th></tr></thead><tbody id="contactRows"></tbody></table><div id="contactsEmpty" class="empty">No contacts yet. Add the first real person when Matt is ready.</div></div></section>
+
+    <section class="view" id="followupsView"><div class="section-actions"><p>Calls, notes, and reminders in one short list.</p><button class="primary" id="addTask">+ Add reminder</button></div><div id="taskList" class="panel list empty">No open reminders.</div></section>
+
+    <section class="view" id="campaignsView"><div class="safety">Campaigns stay as drafts here. Nothing is sent automatically.</div><div class="section-actions"><p>Prepare newsletters, check-ins, email lists, or postal mailers.</p><button class="primary" id="addCampaign">+ New draft</button></div><div id="campaignList" class="cards"></div></section>
+
+    <section class="view" id="assistantView"><div class="grid assistant-grid"><section class="panel"><p class="eyebrow">Whisper + Cactus Needle + local Qwen</p><h2>Speak or type a request</h2><p class="muted">Hold F9 while speaking, then release. Needle will decide whether to prepare an action, search contacts, or delegate the request to the local assistant.</p><form id="assistantForm"><textarea id="assistantPrompt" rows="6" placeholder="Try: Add Susan Miller as a buyer, or remind me Friday to call Susan, or draft a friendly follow-up text."></textarea><button class="primary" type="submit">Understand request</button></form><div class="command-examples"><button type="button" data-command-example="Add Susan Miller as a buyer">Add a contact</button><button type="button" data-command-example="Remind me Friday to call Susan Miller">Set a reminder</button><button type="button" data-command-example="Draft a friendly follow-up text for a buyer I met at an open house">Draft a message</button></div></section><section class="panel response"><p class="eyebrow">Review</p><div id="assistantAnswer">Your answer or action preview will appear here. Nothing that changes records happens without confirmation.</div></section></div></section>
+
+    <section class="view" id="helpView"><div class="grid two"><section class="panel"><h2>Voice shortcuts</h2><dl><dt>F9</dt><dd>Hold to talk, release to type</dd><dt>Super + Ctrl + X</dt><dd>Start or stop continuous dictation</dd><dt>Super + Ctrl + M</dt><dd>Meeting transcription</dd></dl></section><section class="panel"><h2>Appearance</h2><p class="muted">Choose a look. This choice stays on this computer.</p><div class="themes" role="group" aria-label="Color scheme"><button data-theme-choice="command"><span class="swatch command"></span>Mission Control</button><button data-theme-choice="blue"><span class="swatch blue"></span>Coastal blue</button><button data-theme-choice="charcoal"><span class="swatch charcoal"></span>Charcoal</button><button data-theme-choice="plum"><span class="swatch plum"></span>Plum</button><button data-theme-choice="forest"><span class="swatch forest"></span>Forest</button></div></section><section class="panel"><h2>Good to know</h2><ul><li>All records stay on this Dell.</li><li>The database is backed up automatically every night.</li><li>Email sending is intentionally off until Matt connects his own service.</li><li>Use Export CSV anytime to keep a portable contact copy.</li></ul><button class="ghost" id="backupNow">Back up now</button></section><section class="panel"><h2>Bring contacts in</h2><p class="muted">iPhone exports use a vCard (.vcf). Excel, Outlook, and most PCs use CSV. Both work from Contacts → Import contacts.</p><p class="muted">Duplicates with the same email or phone are skipped, and imported people are never subscribed to email automatically.</p></section></div></section>
+  </main>
+
+  <dialog id="modal"><form id="modalForm" method="dialog"><div class="modal-head"><h2 id="modalTitle">Add</h2><button type="button" class="icon" id="closeModal" aria-label="Close">×</button></div><div id="modalFields"></div><div class="modal-actions"><button type="button" class="ghost" id="cancelModal">Cancel</button><button class="primary" id="saveModal" value="default">Save</button></div></form></dialog>
+  <script src="/app.js"></script>
+</body></html>

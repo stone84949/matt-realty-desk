@@ -1,0 +1,6 @@
+[Unit]
+Description=Back up Matt Realty Desk
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/curl -fsS -X POST -H Content-Type:application/json -d {} http://127.0.0.1:3010/api/backup

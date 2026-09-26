@@ -1,0 +1,17 @@
+[Unit]
+Description=Matt Realty Desk
+After=network.target ollama.service
+
+[Service]
+Type=simple
+WorkingDirectory=/home/matt/matt-realty-desk
+ExecStart=/home/matt/matt-realty-desk/.venv/bin/python /home/matt/matt-realty-desk/server.py
+Restart=on-failure
+RestartSec=3
+Environment=MATT_REALTY_HOST=127.0.0.1
+Environment=MATT_REALTY_PORT=3010
+Environment=NEEDLE_TELEMETRY=0
+Environment=DO_NOT_TRACK=1
+
+[Install]
+WantedBy=default.target

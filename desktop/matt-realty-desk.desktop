@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Matt Realty Desk
+Comment=Contacts, follow-ups, campaigns, and local assistant
+Exec=xdg-open http://127.0.0.1:3010
+Icon=/home/matt/matt-realty-desk/static/favicon.svg
+Terminal=false
+Type=Application
+Categories=Office;
+StartupNotify=true
