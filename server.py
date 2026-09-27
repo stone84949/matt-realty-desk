@@ -10,6 +10,8 @@ import os
 import re
 import shutil
 import sqlite3
+import subprocess
+import tempfile
 import threading
 import urllib.error
 import urllib.request
@@ -28,6 +30,7 @@ HOST = os.environ.get("MATT_REALTY_HOST", "127.0.0.1")
 PORT = int(os.environ.get("MATT_REALTY_PORT", "3010"))
 PENDING_ACTIONS: dict[str, dict] = {}
 PENDING_LOCK = threading.Lock()
+ANSI_ESCAPE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 
 
 def now() -> str:
@@ -120,6 +123,21 @@ def clean(value: object, limit: int = 5000) -> str:
     return str(value or "").strip()[:limit]
 
 
+def resolve_spoken_due_date(prompt: str, model_value: object) -> str:
+    text = prompt.lower()
+    today = datetime.now().astimezone().date()
+    if re.search(r"\btoday\b", text):
+        return today.isoformat()
+    if re.search(r"\btomorrow\b", text):
+        return (today + timedelta(days=1)).isoformat()
+    weekdays = {name: index for index, name in enumerate(("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"))}
+    for name, target in weekdays.items():
+        if re.search(rf"\b(?:this\s+|next\s+)?{name}\b", text):
+            days = (target - today.weekday()) % 7
+            return (today + timedelta(days=days or 7)).isoformat()
+    return clean(model_value, 40)
+
+
 def ask_qwen(prompt: str) -> str:
     system = "You are Matt's concise real-estate desk assistant. Help with follow-up wording, call plans, contact organization, and campaign drafts. Never claim to have sent email, changed records, or contacted anyone. Say when Matt must review or act."
     request_data = json.dumps({"model":"qwen3:1.7b","stream":False,"think":False,"keep_alive":"2m","messages":[{"role":"system","content":system},{"role":"user","content":prompt}],"options":{"temperature":0.3,"num_predict":256}}).encode()
@@ -127,6 +145,40 @@ def ask_qwen(prompt: str) -> str:
     with urllib.request.urlopen(req, timeout=90) as response:
         answer = json.load(response).get("message", {}).get("content", "").strip()
     return re.sub(r"<think>[\s\S]*?</think>", "", answer).strip()
+
+
+def transcribe_audio(payload: bytes, content_type: str) -> str:
+    if not payload:
+        raise ValueError("No voice recording was received")
+    suffix = ".ogg" if "ogg" in content_type else ".wav" if "wav" in content_type else ".webm"
+    with tempfile.TemporaryDirectory(prefix="matt-realty-voice-") as temp_dir:
+        source = Path(temp_dir) / f"request{suffix}"
+        wav = Path(temp_dir) / "request.wav"
+        source.write_bytes(payload)
+        try:
+            subprocess.run(
+                ["ffmpeg", "-hide_banner", "-loglevel", "error", "-nostdin", "-y", "-i", str(source), "-vn", "-ac", "1", "-ar", "16000", "-c:a", "pcm_s16le", str(wav)],
+                check=True, capture_output=True, timeout=30,
+            )
+            result = subprocess.run(
+                ["voxtype", "transcribe", str(wav)],
+                check=True, capture_output=True, text=True, timeout=120,
+            )
+        except FileNotFoundError as exc:
+            raise ValueError(f"Voice tool is unavailable: {exc.filename}") from exc
+        except subprocess.TimeoutExpired as exc:
+            raise ValueError("Voice transcription took too long. Please try a shorter request.") from exc
+        except subprocess.CalledProcessError as exc:
+            detail = exc.stderr or exc.stdout or ""
+            if isinstance(detail, bytes):
+                detail = detail.decode(errors="replace")
+            raise ValueError(f"Voice transcription failed: {str(detail).strip()[-300:]}") from exc
+    output = ANSI_ESCAPE.sub("", result.stdout)
+    matches = re.findall(r'Transcription completed in [\d.]+s:\s*"(.*)"\s*$', output, re.MULTILINE)
+    transcript = matches[-1].strip() if matches else ""
+    if not transcript:
+        raise ValueError("I didn't hear clear speech. Please try again a little closer to the microphone.")
+    return transcript[:2000]
 
 
 def action_preview(action: str, args: dict) -> str:
@@ -217,6 +269,14 @@ class Handler(SimpleHTTPRequestHandler):
             raise ValueError("Request is too large")
         return json.loads(self.rfile.read(length) or b"{}")
 
+    def binary_body(self, limit=15_000_000):
+        length = int(self.headers.get("Content-Length", 0))
+        if length <= 0:
+            raise ValueError("No voice recording was received")
+        if length > limit:
+            raise ValueError("Voice recording is too large")
+        return self.rfile.read(length)
+
     def do_GET(self):
         parsed = urlparse(self.path)
         path = parsed.path
@@ -265,6 +325,12 @@ class Handler(SimpleHTTPRequestHandler):
     def do_POST(self):
         path = urlparse(self.path).path
         try:
+            if path == "/api/voice/transcribe":
+                content_type = self.headers.get("Content-Type", "").split(";", 1)[0].lower()
+                if content_type not in {"audio/webm", "audio/ogg", "audio/wav", "audio/x-wav"}:
+                    raise ValueError("Unsupported voice recording format")
+                transcript = transcribe_audio(self.binary_body(), content_type)
+                return self.send_json({"transcript": transcript})
             data = self.body()
             if path == "/api/contacts":
                 stamp = now()
@@ -334,6 +400,8 @@ class Handler(SimpleHTTPRequestHandler):
                 action = routed.get("action")
                 args = routed.get("arguments") or {}
                 confidence = routed.get("confidence")
+                if action == "create_followup":
+                    args["due_date"] = resolve_spoken_due_date(prompt, args.get("due_date"))
                 if not action:
                     return self.send_json({"kind":"unsupported", "message":"I couldn't match that to a safe action. Try asking a shorter question or use one of the examples.", "confidence":confidence})
                 if action in {"create_contact", "create_followup"}:
