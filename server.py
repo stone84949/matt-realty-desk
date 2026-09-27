@@ -29,7 +29,10 @@ DB_PATH = DATA_DIR / "realty.db"
 BACKUP_DIR = DATA_DIR / "backups"
 HOST = os.environ.get("MATT_REALTY_HOST", "127.0.0.1")
 PORT = int(os.environ.get("MATT_REALTY_PORT", "3010"))
-VOICE_MODEL = os.environ.get("MATT_REALTY_VOICE_MODEL", "tiny.en")
+VOICE_BINARY = os.environ.get("MATT_REALTY_VOICE_BINARY", "/usr/lib/voxtype/voxtype-onnx-avx2")
+VOICE_CONFIG = Path(os.environ.get("MATT_REALTY_VOICE_CONFIG", APP_DIR / "voice.toml"))
+VOICE_ENGINE = os.environ.get("MATT_REALTY_VOICE_ENGINE", "parakeet")
+VOICE_MODEL = os.environ.get("MATT_REALTY_VOICE_MODEL", "parakeet-tdt-0.6b-v3-int8")
 ASSISTANT_MODEL = os.environ.get("MATT_REALTY_ASSISTANT_MODEL", "qwen3:0.6b")
 PENDING_ACTIONS: dict[str, dict] = {}
 PENDING_LOCK = threading.Lock()
@@ -155,7 +158,7 @@ def transcribe_audio(payload: bytes, content_type: str) -> tuple[str, float]:
         raise ValueError("No voice recording was received")
     suffix = ".ogg" if "ogg" in content_type else ".wav" if "wav" in content_type else ".webm"
     with tempfile.TemporaryDirectory(prefix="matt-realty-voice-") as temp_dir:
-        source = Path(temp_dir) / f"request{suffix}"
+        source = Path(temp_dir) / f"request-input{suffix}"
         wav = Path(temp_dir) / "request.wav"
         source.write_bytes(payload)
         try:
@@ -164,8 +167,9 @@ def transcribe_audio(payload: bytes, content_type: str) -> tuple[str, float]:
                 check=True, capture_output=True, timeout=30,
             )
             started = time.perf_counter()
+            voice_binary = VOICE_BINARY if Path(VOICE_BINARY).exists() else "voxtype"
             result = subprocess.run(
-                ["voxtype", "--model", VOICE_MODEL, "--threads", "4", "transcribe", str(wav)],
+                [voice_binary, "--config", str(VOICE_CONFIG), "transcribe", str(wav)],
                 check=True, capture_output=True, text=True, timeout=120,
             )
             elapsed = time.perf_counter() - started
@@ -179,8 +183,10 @@ def transcribe_audio(payload: bytes, content_type: str) -> tuple[str, float]:
                 detail = detail.decode(errors="replace")
             raise ValueError(f"Voice transcription failed: {str(detail).strip()[-300:]}") from exc
     output = ANSI_ESCAPE.sub("", result.stdout)
-    matches = re.findall(r'Transcription completed in [\d.]+s:\s*"(.*)"\s*$', output, re.MULTILINE)
-    transcript = matches[-1].strip() if matches else ""
+    lines = [line.strip() for line in output.splitlines() if line.strip()]
+    final_line = lines[-1] if lines else ""
+    matches = re.findall(r'[Tt]ranscription completed in [\d.]+s:\s*"(.*)"\s*$', output, re.MULTILINE)
+    transcript = final_line if final_line and "transcription completed in" not in final_line.lower() else (matches[-1].strip() if matches else "")
     if not transcript:
         raise ValueError("I didn't hear clear speech. Please try again a little closer to the microphone.")
     return transcript[:2000], elapsed
@@ -335,7 +341,7 @@ class Handler(SimpleHTTPRequestHandler):
                 if content_type not in {"audio/webm", "audio/ogg", "audio/wav", "audio/x-wav"}:
                     raise ValueError("Unsupported voice recording format")
                 transcript, elapsed = transcribe_audio(self.binary_body(), content_type)
-                return self.send_json({"transcript": transcript, "transcription_seconds": round(elapsed, 1), "model": VOICE_MODEL})
+                return self.send_json({"transcript": transcript, "transcription_seconds": round(elapsed, 1), "engine": VOICE_ENGINE, "model": VOICE_MODEL})
             data = self.body()
             if path == "/api/contacts":
                 stamp = now()

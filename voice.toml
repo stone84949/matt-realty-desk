@@ -1,0 +1,8 @@
+# App-specific speech recognition. The system-wide Voxtype setup remains unchanged.
+engine = "parakeet"
+
+[parakeet]
+model = "parakeet-tdt-0.6b-v3-int8"
+model_type = "tdt"
+threads = 4
+on_demand_loading = true
