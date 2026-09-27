@@ -14,7 +14,8 @@ remain available under Help → Appearance.
 
 The Assistant screen supports typed requests and integrated local voice commands.
 Voice audio is recorded by the browser, converted locally with FFmpeg, transcribed
-by Voxtype/Whisper, and sent through Cactus Needle to the local Ollama model. It can
+by Voxtype with the low-latency Whisper `tiny.en` model, and sent through Cactus
+Needle. Longer drafting and advice requests use the local `qwen3:0.6b` Ollama model. It can
 search contacts, draft messages, answer questions, and prepare contacts or reminders.
 It cannot contact people, and record-changing actions always require confirmation.
 

@@ -13,6 +13,7 @@ import sqlite3
 import subprocess
 import tempfile
 import threading
+import time
 import urllib.error
 import urllib.request
 import uuid
@@ -28,6 +29,8 @@ DB_PATH = DATA_DIR / "realty.db"
 BACKUP_DIR = DATA_DIR / "backups"
 HOST = os.environ.get("MATT_REALTY_HOST", "127.0.0.1")
 PORT = int(os.environ.get("MATT_REALTY_PORT", "3010"))
+VOICE_MODEL = os.environ.get("MATT_REALTY_VOICE_MODEL", "tiny.en")
+ASSISTANT_MODEL = os.environ.get("MATT_REALTY_ASSISTANT_MODEL", "qwen3:0.6b")
 PENDING_ACTIONS: dict[str, dict] = {}
 PENDING_LOCK = threading.Lock()
 ANSI_ESCAPE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
@@ -140,14 +143,14 @@ def resolve_spoken_due_date(prompt: str, model_value: object) -> str:
 
 def ask_qwen(prompt: str) -> str:
     system = "You are Matt's concise real-estate desk assistant. Help with follow-up wording, call plans, contact organization, and campaign drafts. Never claim to have sent email, changed records, or contacted anyone. Say when Matt must review or act."
-    request_data = json.dumps({"model":"qwen3:1.7b","stream":False,"think":False,"keep_alive":"2m","messages":[{"role":"system","content":system},{"role":"user","content":prompt}],"options":{"temperature":0.3,"num_predict":256}}).encode()
+    request_data = json.dumps({"model":ASSISTANT_MODEL,"stream":False,"think":False,"keep_alive":"10m","messages":[{"role":"system","content":system},{"role":"user","content":prompt}],"options":{"temperature":0.3,"num_predict":128}}).encode()
     req = urllib.request.Request("http://127.0.0.1:11434/api/chat", data=request_data, headers={"Content-Type":"application/json"})
     with urllib.request.urlopen(req, timeout=90) as response:
         answer = json.load(response).get("message", {}).get("content", "").strip()
     return re.sub(r"<think>[\s\S]*?</think>", "", answer).strip()
 
 
-def transcribe_audio(payload: bytes, content_type: str) -> str:
+def transcribe_audio(payload: bytes, content_type: str) -> tuple[str, float]:
     if not payload:
         raise ValueError("No voice recording was received")
     suffix = ".ogg" if "ogg" in content_type else ".wav" if "wav" in content_type else ".webm"
@@ -160,10 +163,12 @@ def transcribe_audio(payload: bytes, content_type: str) -> str:
                 ["ffmpeg", "-hide_banner", "-loglevel", "error", "-nostdin", "-y", "-i", str(source), "-vn", "-ac", "1", "-ar", "16000", "-c:a", "pcm_s16le", str(wav)],
                 check=True, capture_output=True, timeout=30,
             )
+            started = time.perf_counter()
             result = subprocess.run(
-                ["voxtype", "transcribe", str(wav)],
+                ["voxtype", "--model", VOICE_MODEL, "--threads", "4", "transcribe", str(wav)],
                 check=True, capture_output=True, text=True, timeout=120,
             )
+            elapsed = time.perf_counter() - started
         except FileNotFoundError as exc:
             raise ValueError(f"Voice tool is unavailable: {exc.filename}") from exc
         except subprocess.TimeoutExpired as exc:
@@ -178,7 +183,7 @@ def transcribe_audio(payload: bytes, content_type: str) -> str:
     transcript = matches[-1].strip() if matches else ""
     if not transcript:
         raise ValueError("I didn't hear clear speech. Please try again a little closer to the microphone.")
-    return transcript[:2000]
+    return transcript[:2000], elapsed
 
 
 def action_preview(action: str, args: dict) -> str:
@@ -329,8 +334,8 @@ class Handler(SimpleHTTPRequestHandler):
                 content_type = self.headers.get("Content-Type", "").split(";", 1)[0].lower()
                 if content_type not in {"audio/webm", "audio/ogg", "audio/wav", "audio/x-wav"}:
                     raise ValueError("Unsupported voice recording format")
-                transcript = transcribe_audio(self.binary_body(), content_type)
-                return self.send_json({"transcript": transcript})
+                transcript, elapsed = transcribe_audio(self.binary_body(), content_type)
+                return self.send_json({"transcript": transcript, "transcription_seconds": round(elapsed, 1), "model": VOICE_MODEL})
             data = self.body()
             if path == "/api/contacts":
                 stamp = now()
