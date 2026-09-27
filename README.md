@@ -15,8 +15,10 @@ remain available under Help → Appearance.
 The Assistant screen supports typed requests and integrated local voice commands.
 Voice audio is recorded by the browser, converted locally with FFmpeg, transcribed
 by Voxtype with the English Parakeet TDT int8 model, and sent through Cactus
-Needle. Longer drafting and advice requests use the local `qwen3:0.6b` Ollama model. It can
-search contacts, draft messages, answer questions, and prepare contacts or reminders.
+Needle. CRM commands use the fast local `qwen3:0.6b` model. General Assistant,
+Follow-up Coach, and Marketing Writer use the stronger local `qwen3:1.7b` model.
+The selected mode applies to both typed and spoken requests. It can search contacts,
+draft messages, answer questions, and prepare contacts or reminders.
 It cannot contact people, and record-changing actions always require confirmation.
 
 ## Quick check

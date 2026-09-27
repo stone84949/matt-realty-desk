@@ -34,6 +34,7 @@ VOICE_CONFIG = Path(os.environ.get("MATT_REALTY_VOICE_CONFIG", APP_DIR / "voice.
 VOICE_ENGINE = os.environ.get("MATT_REALTY_VOICE_ENGINE", "parakeet")
 VOICE_MODEL = os.environ.get("MATT_REALTY_VOICE_MODEL", "parakeet-tdt-0.6b-v3-int8")
 ASSISTANT_MODEL = os.environ.get("MATT_REALTY_ASSISTANT_MODEL", "qwen3:0.6b")
+DISCUSSION_MODEL = os.environ.get("MATT_REALTY_DISCUSSION_MODEL", "qwen3:1.7b")
 PENDING_ACTIONS: dict[str, dict] = {}
 PENDING_LOCK = threading.Lock()
 ANSI_ESCAPE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
@@ -144,9 +145,55 @@ def resolve_spoken_due_date(prompt: str, model_value: object) -> str:
     return clean(model_value, 40)
 
 
-def ask_qwen(prompt: str) -> str:
-    system = "You are Matt's concise real-estate desk assistant. Help with follow-up wording, call plans, contact organization, and campaign drafts. Never claim to have sent email, changed records, or contacted anyone. Say when Matt must review or act."
-    request_data = json.dumps({"model":ASSISTANT_MODEL,"stream":False,"think":False,"keep_alive":"10m","messages":[{"role":"system","content":system},{"role":"user","content":prompt}],"options":{"temperature":0.3,"num_predict":128}}).encode()
+ASSISTANT_MODES = {
+    "crm": {
+        "name": "CRM Actions",
+        "model": ASSISTANT_MODEL,
+        "system": "You are Matt's concise real-estate desk assistant. Help with follow-up wording, call plans, contact organization, and campaign drafts. Never claim to have sent email, changed records, or contacted anyone. Say when Matt must review or act.",
+        "temperature": 0.3,
+        "num_predict": 160,
+    },
+    "general": {
+        "name": "General Assistant",
+        "model": DISCUSSION_MODEL,
+        "system": "You are Matt's private local assistant. Discuss ideas, explain choices, help plan work, and answer general questions in plain language. Be practical and concise. Do not claim to have changed records, sent messages, browsed the web, or completed actions that you did not actually perform.",
+        "temperature": 0.45,
+        "num_predict": 256,
+    },
+    "coach": {
+        "name": "Follow-up Coach",
+        "model": DISCUSSION_MODEL,
+        "system": "You are Matt's real-estate follow-up coach. Help him prepare calls, handle objections, choose respectful next steps, and stay useful without being pushy. Ask one focused question when essential; otherwise give a short suggested approach and natural wording. Never claim to contact anyone or change CRM records.",
+        "temperature": 0.4,
+        "num_predict": 256,
+    },
+    "marketing": {
+        "name": "Marketing Writer",
+        "model": DISCUSSION_MODEL,
+        "system": "You are Matt's real-estate marketing writer. Draft clear, warm, credible messages, mailers, social posts, and campaign ideas. Avoid hype, invented facts, legal promises, and unsupported market claims. Provide ready-to-edit copy and never claim it was sent or published.",
+        "temperature": 0.55,
+        "num_predict": 320,
+    },
+}
+
+
+def assistant_mode(value: object) -> str:
+    mode = clean(value, 30).lower() or "crm"
+    return mode if mode in ASSISTANT_MODES else "crm"
+
+
+def ask_qwen(prompt: str, mode: str = "crm", history: object = None) -> str:
+    config = ASSISTANT_MODES[assistant_mode(mode)]
+    messages = [{"role":"system", "content":config["system"]}]
+    if isinstance(history, list):
+        for item in history[-8:]:
+            if not isinstance(item, dict) or item.get("role") not in {"user", "assistant"}:
+                continue
+            content = clean(item.get("content"), 2000)
+            if content:
+                messages.append({"role":item["role"], "content":content})
+    messages.append({"role":"user", "content":prompt})
+    request_data = json.dumps({"model":config["model"],"stream":False,"think":False,"keep_alive":"10m","messages":messages,"options":{"temperature":config["temperature"],"num_predict":config["num_predict"]}}).encode()
     req = urllib.request.Request("http://127.0.0.1:11434/api/chat", data=request_data, headers={"Content-Type":"application/json"})
     with urllib.request.urlopen(req, timeout=90) as response:
         answer = json.load(response).get("message", {}).get("content", "").strip()
@@ -402,6 +449,14 @@ class Handler(SimpleHTTPRequestHandler):
                 return self.send_json({"id": cur.lastrowid}, 201)
             if path == "/api/command/interpret":
                 prompt = require(data.get("prompt"), "Voice command")[:2000]
+                mode = assistant_mode(data.get("mode"))
+                if mode != "crm":
+                    try:
+                        answer = ask_qwen(prompt, mode, data.get("history"))
+                        config = ASSISTANT_MODES[mode]
+                        return self.send_json({"kind":"answer", "answer":answer or "I couldn't form an answer. Please try a shorter request.", "mode":mode, "assistant":config["name"], "delegated_to":config["model"]})
+                    except (urllib.error.URLError, TimeoutError):
+                        return self.send_json({"error":"The local discussion model is waking up or unavailable. Try again in a moment."}, 503)
                 from needle_router import interpret
                 try:
                     routed = interpret(prompt)
@@ -427,7 +482,7 @@ class Handler(SimpleHTTPRequestHandler):
                 if action in {"draft_message", "ask_assistant"}:
                     delegated = clean(args.get("request") or args.get("question") or prompt, 2000)
                     try:
-                        answer = ask_qwen(delegated)
+                        answer = ask_qwen(delegated, "crm")
                         return self.send_json({"kind":"answer", "answer":answer or "I couldn't form an answer. Please try a shorter request.", "delegated_to":"Local Qwen", "confidence":confidence})
                     except (urllib.error.URLError, TimeoutError):
                         return self.send_json({"error":"The local assistant is waking up or unavailable. Try again in a moment."}, 503)
@@ -436,9 +491,10 @@ class Handler(SimpleHTTPRequestHandler):
                 return self.send_json(execute_staged(require(data.get("token"), "Confirmation token")), 201)
             if path == "/api/assistant":
                 prompt = require(data.get("prompt"), "Message")[:2000]
+                mode = assistant_mode(data.get("mode"))
                 try:
-                    answer = ask_qwen(prompt)
-                    return self.send_json({"answer": answer or "I couldn't form an answer. Please try a shorter request."})
+                    answer = ask_qwen(prompt, mode, data.get("history"))
+                    return self.send_json({"answer": answer or "I couldn't form an answer. Please try a shorter request.", "mode":mode})
                 except (urllib.error.URLError, TimeoutError):
                     return self.send_json({"error":"The local assistant is waking up or unavailable. Try again in a moment."}, 503)
             if path == "/api/backup":
