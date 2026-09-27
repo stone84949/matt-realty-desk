@@ -20,6 +20,8 @@ Follow-up Coach, and Marketing Writer use the stronger local `qwen3:1.7b` model.
 The selected mode applies to both typed and spoken requests. It can search contacts,
 draft messages, answer questions, and prepare contacts or reminders.
 It cannot contact people, and record-changing actions always require confirmation.
+When `espeak-ng` is installed, replies can be read aloud entirely on the Dell.
+The dedicated launcher and `Super+A` open the Assistant screen directly.
 
 ## Quick check
 

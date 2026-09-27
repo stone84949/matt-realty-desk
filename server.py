@@ -239,6 +239,26 @@ def transcribe_audio(payload: bytes, content_type: str) -> tuple[str, float]:
     return transcript[:2000], elapsed
 
 
+def synthesize_speech(text: str) -> bytes:
+    speaker = shutil.which("espeak-ng") or shutil.which("espeak")
+    if not speaker:
+        raise ValueError("Spoken replies are not installed yet")
+    spoken = clean(text, 1600)
+    if not spoken:
+        raise ValueError("There is no reply to speak")
+    try:
+        result = subprocess.run(
+            [speaker, "--stdout", "--stdin", "-v", "en-us", "-s", "158", "-p", "45"],
+            input=spoken.encode(),
+            capture_output=True,
+            timeout=30,
+            check=True,
+        )
+    except (subprocess.TimeoutExpired, subprocess.CalledProcessError) as exc:
+        raise ValueError("The spoken reply could not be generated") from exc
+    return result.stdout
+
+
 def action_preview(action: str, args: dict) -> str:
     if action == "create_contact":
         details = [clean(args.get("name"), 200), clean(args.get("relationship"), 50) or "Prospect"]
@@ -321,6 +341,14 @@ class Handler(SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
+    def send_bytes(self, data: bytes, content_type: str, status=200):
+        self.send_response(status)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(data)
+
     def body(self):
         length = int(self.headers.get("Content-Length", 0))
         if length > 10_000_000:
@@ -390,6 +418,8 @@ class Handler(SimpleHTTPRequestHandler):
                 transcript, elapsed = transcribe_audio(self.binary_body(), content_type)
                 return self.send_json({"transcript": transcript, "transcription_seconds": round(elapsed, 1), "engine": VOICE_ENGINE, "model": VOICE_MODEL})
             data = self.body()
+            if path == "/api/tts":
+                return self.send_bytes(synthesize_speech(require(data.get("text"), "Reply")), "audio/wav")
             if path == "/api/contacts":
                 stamp = now()
                 values = (require(data.get("first_name"), "First name"), clean(data.get("last_name"),100), clean(data.get("email"),250), clean(data.get("phone"),50), clean(data.get("type"),50) or "Prospect", clean(data.get("stage"),50) or "New", clean(data.get("source"),100), clean(data.get("notes")), clean(data.get("email_permission"),50) or "Not asked", clean(data.get("next_follow_up_at"),40) or None, stamp, stamp)
