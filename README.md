@@ -12,8 +12,11 @@ remain available under Help → Appearance.
 - Backups: `~/.local/share/matt-realty-desk/backups/`
 - Logs: `journalctl --user -u matt-realty-desk`
 
-The assistant uses the local Ollama model and cannot contact people. Record-changing
-assistant actions always require confirmation.
+The Assistant screen supports typed requests and integrated local voice commands.
+Voice audio is recorded by the browser, converted locally with FFmpeg, transcribed
+by Voxtype/Whisper, and sent through Cactus Needle to the local Ollama model. It can
+search contacts, draft messages, answer questions, and prepare contacts or reminders.
+It cannot contact people, and record-changing actions always require confirmation.
 
 ## Quick check
 
