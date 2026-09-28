@@ -1,7 +1,7 @@
 # Matt Realty Desk Guided Onboarding and Complete Contacts Design
 
-**Date:** 2026-09-28  
-**Status:** Approved design, pending implementation plan  
+**Date:** 2026-09-28
+**Status:** Approved design, pending implementation plan
 **Audience:** Matt, Josh, and agents maintaining Matt's dedicated Omarchy HP
 
 ## Purpose
@@ -350,4 +350,3 @@ not emit its contact values.
 - Automatically executing arbitrary instructions pulled from GitHub.
 - Building a general OpenClaw-style automation platform.
 - Exposing the local CRM directly to the public internet.
-
