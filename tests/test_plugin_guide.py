@@ -95,6 +95,8 @@ class PluginGuideTests(unittest.TestCase):
                 self.assertIn(plugin["asset"], static_notices)
                 self.assertIn(plugin["repository"], static_notices)
                 self.assertIn(plugin["reviewed_sha"], static_notices)
+                self.assertIn(plugin["source_path"], static_notices)
+                self.assertIn(plugin["copyright"], static_notices)
 
 
 if __name__ == "__main__":
