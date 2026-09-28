@@ -1,0 +1,137 @@
+{
+  "reviewed_at": "2026-09-28",
+  "plugins": [
+    {
+      "name": "Omaplug",
+      "repository": "fross100/omaplug",
+      "plugin_id": "omaplug",
+      "classification": "install_now",
+      "reviewed_sha": "9da73fc13fc2027be5b44915b4ab89440beb74ab",
+      "asset": "omaplug-guide.webp",
+      "source_path": "preview/preview.png",
+      "copyright": "Copyright (c) 2026 Fross",
+      "license": "MIT"
+    },
+    {
+      "name": "OmaSettings",
+      "repository": "twiking/omasettings",
+      "plugin_id": "io.github.twiking.omasettings",
+      "classification": "owner_tool",
+      "reviewed_sha": "72cfe1640aaece2fef39e4dd155289510f07b2a8",
+      "asset": "omasettings-guide.webp",
+      "source_path": "preview.png",
+      "copyright": "Copyright (c) 2026 Tobias Wiking",
+      "license": "MIT"
+    },
+    {
+      "name": "Omapager",
+      "repository": "ryanrhughes/omapager",
+      "plugin_id": "njpatel.omapager",
+      "classification": "skip",
+      "reviewed_sha": "c389e73516828d18f26e8efec2127c0c3dc3cb97",
+      "asset": "omapager-guide.webp",
+      "source_path": "preview.png (text redacted locally)",
+      "copyright": "Copyright (c) 2026 Neil Jagdish Patel",
+      "license": "MIT"
+    },
+    {
+      "name": "Better Bluetooth",
+      "repository": "AROICE-HQ/omarchy-bluetooth",
+      "plugin_id": "io.github.aryan-techie.bluetooth",
+      "classification": "conditional",
+      "reviewed_sha": "43db1ec49750a4bd5da54d571db4e9baa4afa495",
+      "asset": "bluetooth-guide.webp",
+      "source_path": "preview.png",
+      "copyright": "Copyright (c) 2026 aryan-techie",
+      "license": "MIT"
+    },
+    {
+      "name": "Notification Center",
+      "repository": "jankeesvw/omarchy-notification-center",
+      "plugin_id": "jankeesvw.notification-center",
+      "classification": "install_now",
+      "reviewed_sha": "e4c4568daaf93751097f86a79f98b35c4c00da44",
+      "asset": "notification-center-guide.webp",
+      "source_path": "preview.png",
+      "copyright": "Copyright (c) 2026 Jankees van Woezik",
+      "license": "MIT"
+    },
+    {
+      "name": "Vimarchy",
+      "repository": "clickety-clacks/vimarchy",
+      "plugin_id": "vimarchy",
+      "classification": "skip",
+      "reviewed_sha": "30601976903821a82097ab568f10aae56564c32f",
+      "asset": "vimarchy-guide.webp",
+      "source_path": "assets/vimarchy-hero.webp (first frame)",
+      "copyright": "Copyright (c) 2026 Mike Manzano",
+      "license": "MIT"
+    },
+    {
+      "name": "Omaland",
+      "repository": "bobby-nicholas/omaland",
+      "plugin_id": "bobbynicholas.omaland",
+      "classification": "skip",
+      "reviewed_sha": "48d1c64acd78cd3a2862ccaad17c8045be3dda38",
+      "asset": "omaland-guide.webp",
+      "source_path": "preview.png",
+      "copyright": "Copyright (c) 2026 Bobby Nicholas",
+      "license": "MIT"
+    },
+    {
+      "name": "Omarchy Tray",
+      "repository": "TyRichards/omarchy-tray",
+      "plugin_id": "io.github.tyrichards.tray",
+      "classification": "conditional",
+      "reviewed_sha": "5c0d9a9f0efcf151f93b5cf991916221671d1601",
+      "asset": "tray-guide.webp",
+      "source_path": "preview.png",
+      "copyright": "Copyright (c) 2026 Ty Richards",
+      "license": "MIT"
+    },
+    {
+      "name": "Omdrop",
+      "repository": "brentkearney/omdrop-plugin",
+      "plugin_id": "netmojo.omdrop",
+      "classification": "incompatible",
+      "reviewed_sha": "e4e35566325310ca234fa2041cb41a91668ac189",
+      "asset": "omdrop-guide.webp",
+      "source_path": "preview.png",
+      "copyright": "Copyright (c) 2026 Brent Kearney",
+      "license": "MIT"
+    },
+    {
+      "name": "Expose",
+      "repository": "kristofferR/omarchy-expose",
+      "plugin_id": "expose.window-overview",
+      "classification": "install_now",
+      "reviewed_sha": "805adb947e634ff4d0c3924cbbe993beae9e3319",
+      "asset": "expose-guide.webp",
+      "source_path": "preview.png",
+      "copyright": "Copyright (c) 2026 Harel Malka; Copyright (c) 2026 kristofferR",
+      "license": "MIT"
+    },
+    {
+      "name": "Decent Workspaces",
+      "repository": "TheTrueFerret/omarchy-decent-workspaces",
+      "plugin_id": "io.github.thetrueferret.decent-workspaces",
+      "classification": "later",
+      "reviewed_sha": "926bf523c4c103b8d7c5e5b42fb426ad260cff22",
+      "asset": "decent-workspaces-guide.webp",
+      "source_path": "preview.png",
+      "copyright": "Copyright (c) 2026 TheTrueFerret",
+      "license": "MIT"
+    },
+    {
+      "name": "Which Key",
+      "repository": "huacnlee/omarchy-which-key",
+      "plugin_id": "huacnlee.which-key",
+      "classification": "install_now",
+      "reviewed_sha": "fba0cdb472c90eb5a4e8bb5113030d087024a805",
+      "asset": "which-key-guide.webp",
+      "source_path": "preview.png",
+      "copyright": "Copyright (c) 2026 Jason Lee",
+      "license": "MIT"
+    }
+  ]
+}
