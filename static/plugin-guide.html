@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="A plain-language review of Omarchy plugins considered for Matt's HP.">
+  <title>Helpful additions for Matt's HP</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #050a10;
+      --surface: #0a121b;
+      --surface-2: #0d1823;
+      --line: #1a3440;
+      --ink: #eaf8f7;
+      --muted: #93a9ae;
+      --teal: #18d9c5;
+      --teal-soft: #0b302f;
+      --gold: #f6c963;
+      --gold-soft: #302917;
+      --rose: #ff7084;
+      --rose-soft: #321923;
+      --blue: #75b9f0;
+      --blue-soft: #10263a;
+      font: 16px/1.55 Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+    }
+    * { box-sizing: border-box; }
+    html { background: var(--bg); scroll-behavior: smooth; }
+    body { margin: 0; background: var(--bg); color: var(--ink); }
+    a { color: inherit; }
+    a:focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; }
+    .masthead { border-bottom: 1px solid var(--line); background: #071019; }
+    .masthead-inner { max-width: 1120px; margin: auto; padding: 30px 28px 26px; }
+    .utility { display: flex; justify-content: space-between; align-items: center; gap: 20px; margin-bottom: 24px; }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand img { width: 42px; height: 42px; }
+    .brand strong, .brand span { display: block; }
+    .brand span { color: var(--muted); font-size: .78rem; }
+    .back { border: 1px solid var(--line); border-radius: 7px; padding: 8px 12px; text-decoration: none; font-weight: 750; }
+    .back:hover { border-color: var(--teal); color: var(--teal); }
+    h1 { max-width: 920px; margin: 0; font-size: clamp(2rem, 5vw, 3.2rem); line-height: 1.04; letter-spacing: 0; }
+    .lead { max-width: 760px; margin: 14px 0 0; color: var(--muted); font-size: 1.04rem; }
+    .summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; max-width: 1120px; margin: 0 auto; border: 1px solid var(--line); border-top: 0; background: var(--line); }
+    .summary div { background: var(--surface); padding: 16px 20px; }
+    .summary strong, .summary span { display: block; }
+    .summary strong { font-size: 1.45rem; }
+    .summary span { color: var(--muted); font-size: .82rem; }
+    main { max-width: 1120px; margin: auto; padding: 34px 28px 72px; }
+    .notice { border-left: 4px solid var(--gold); background: var(--gold-soft); padding: 16px 18px; margin-bottom: 34px; }
+    .notice strong { color: var(--gold); }
+    .section-head { display: flex; align-items: end; justify-content: space-between; gap: 20px; margin: 38px 0 14px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+    .section-head h2 { margin: 0; font-size: 1.55rem; letter-spacing: 0; }
+    .section-head p { margin: 0; color: var(--muted); max-width: 520px; text-align: right; }
+    .plugins { display: grid; gap: 12px; }
+    .plugin { display: grid; grid-template-columns: 245px minmax(0, 1fr); min-height: 170px; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--surface); }
+    .preview { min-height: 170px; background: #020609; border-right: 1px solid var(--line); }
+    .preview img { display: block; width: 100%; height: 100%; min-height: 170px; object-fit: cover; object-position: center; }
+    .plugin-copy { padding: 18px 20px; display: grid; align-content: center; gap: 9px; }
+    .plugin-title { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+    .plugin h3 { margin: 0; font-size: 1.18rem; letter-spacing: 0; }
+    .status { border: 1px solid currentColor; border-radius: 99px; padding: 3px 8px; font-size: .72rem; font-weight: 850; }
+    .install { color: var(--teal); background: var(--teal-soft); }
+    .owner { color: var(--gold); background: var(--gold-soft); }
+    .later { color: var(--blue); background: var(--blue-soft); }
+    .skip { color: var(--rose); background: var(--rose-soft); }
+    .plugin p { margin: 0; color: var(--muted); max-width: 720px; }
+    .why { color: var(--ink) !important; }
+    .source { width: max-content; color: var(--teal); font-weight: 780; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+    .owner-details { margin-top: 34px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-2); }
+    .owner-details summary { cursor: pointer; padding: 15px 18px; font-weight: 800; }
+    .owner-details div { padding: 0 18px 18px; color: var(--muted); }
+    .owner-details code { color: var(--teal); }
+    footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--line); color: var(--muted); font-size: .82rem; }
+    @media (max-width: 760px) {
+      .masthead-inner, main { padding-left: 16px; padding-right: 16px; }
+      .utility { align-items: flex-start; }
+      .summary { grid-template-columns: 1fr; }
+      .section-head { align-items: flex-start; flex-direction: column; }
+      .section-head p { text-align: left; }
+      .plugin { grid-template-columns: 1fr; }
+      .preview { border-right: 0; border-bottom: 1px solid var(--line); }
+      .preview img { max-height: 250px; }
+    }
+    @media (max-width: 520px) {
+      .masthead-inner { padding-top: 20px; }
+      .utility { align-items: stretch; flex-direction: column; gap: 14px; margin-bottom: 20px; }
+      .back { width: 100%; text-align: center; }
+      h1 { font-size: 2rem; line-height: 1.08; overflow-wrap: anywhere; }
+      .lead { font-size: .96rem; }
+      .notice { margin-left: 0; margin-right: 0; padding: 14px; }
+      .plugin-copy { padding: 16px; }
+    }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+    @media print { .back, .owner-details { display: none; } body, :root { color-scheme: light; --bg: #fff; --surface: #fff; --surface-2: #fff; --ink: #172027; --muted: #51616a; --line: #cbd5da; } }
+  </style>
+</head>
+<body>
+  <header class="masthead">
+    <div class="masthead-inner">
+      <div class="utility">
+        <div class="brand"><img src="/favicon.svg" alt=""><div><strong>Matt Realty Desk</strong><span>Computer additions</span></div></div>
+        <a class="back" href="/">Back to Realty Desk</a>
+      </div>
+      <h1>Helpful additions for Matt's HP</h1>
+      <p class="lead">These are optional additions to Omarchy. Matt can review what each one does here; the agent handles installation, verification, and removal.</p>
+    </div>
+  </header>
+  <section class="summary" aria-label="Plugin review summary">
+    <div><strong>4</strong><span>Recommended now</span></div>
+    <div><strong>4</strong><span>Owner tools or later</span></div>
+    <div><strong>4</strong><span>Skip on this HP</span></div>
+  </section>
+  <main>
+    <div class="notice"><strong>Plugins are trusted software.</strong> Omarchy plugins run as unsandboxed code with access to Matt's user account. Nothing on this page installs software; Josh or the agent reviews each source and installs one at a time.</div>
+
+    <section aria-labelledby="install-now">
+      <div class="section-head"><h2 id="install-now">Install now</h2><p>Four additions that reduce hunting, memorizing, and missed information.</p></div>
+      <div class="plugins">
+        <article class="plugin">
+          <div class="preview"><img src="/assets/plugin-guide/omaplug-guide.webp" alt="Omaplug showing installed plugins and their status"></div>
+          <div class="plugin-copy"><div class="plugin-title"><h3>Omaplug</h3><span class="status install">Install now</span></div><p class="why">A clearer control panel for Josh and the agent to review, update, disable, or remove plugins.</p><p>Matt does not need to manage it. Automatic bulk updates stay off until changes have been reviewed.</p><a class="source" href="https://github.com/fross100/omaplug" target="_blank" rel="noopener noreferrer">View source and attribution</a></div>
+        </article>
+        <article class="plugin">
+          <div class="preview"><img src="/assets/plugin-guide/which-key-guide.webp" alt="Which Key overlay listing available Omarchy shortcuts"></div>
+          <div class="plugin-copy"><div class="plugin-title"><h3>Which Key</h3><span class="status install">Install now</span></div><p class="why">Hold the Windows key to see the shortcuts that are available right now.</p><p>This is the best learning aid in the group because it removes the need to memorize Omarchy all at once.</p><a class="source" href="https://github.com/huacnlee/omarchy-which-key" target="_blank" rel="noopener noreferrer">View source and attribution</a></div>
+        </article>
+        <article class="plugin">
+          <div class="preview"><img src="/assets/plugin-guide/expose-guide.webp" alt="Expose overview showing open windows as visual previews"></div>
+          <div class="plugin-copy"><div class="plugin-title"><h3>Expose</h3><span class="status install">Install now</span></div><p class="why">Shows every open window in one visual overview, similar to Mission Control on a Mac.</p><p>Matt can find the CRM, email, or another window without understanding workspace numbers.</p><a class="source" href="https://github.com/kristofferR/omarchy-expose" target="_blank" rel="noopener noreferrer">View source and attribution</a></div>
+        </article>
+        <article class="plugin">
+          <div class="preview"><img src="/assets/plugin-guide/notification-center-guide.webp" alt="Notification Center displaying saved notifications by day"></div>
+          <div class="plugin-copy"><div class="plugin-title"><h3>Notification Center</h3><span class="status install">Install now</span></div><p class="why">Keeps notifications available after the temporary popup disappears.</p><p>The simpler notification history was chosen instead of Omapager's replacement notification system.</p><a class="source" href="https://github.com/jankeesvw/omarchy-notification-center" target="_blank" rel="noopener noreferrer">View source and attribution</a></div>
+        </article>
+      </div>
+    </section>
+
+    <section aria-labelledby="owner-later">
+      <div class="section-head"><h2 id="owner-later">Owner tools or later</h2><p>Useful in the right situation, but not part of Matt's first setup.</p></div>
+      <div class="plugins">
+        <article class="plugin">
+          <div class="preview"><img src="/assets/plugin-guide/omasettings-guide.webp" alt="OmaSettings window with organized Omarchy controls"></div>
+          <div class="plugin-copy"><div class="plugin-title"><h3>OmaSettings</h3><span class="status owner">Owner tool</span></div><p class="why">Puts many Omarchy settings into one searchable window.</p><p>It can edit important configuration, so it is best reserved for Josh or the agent after remote support is working.</p><a class="source" href="https://github.com/twiking/omasettings" target="_blank" rel="noopener noreferrer">View source and attribution</a></div>
+        </article>
+        <article class="plugin">
+          <div class="preview"><img src="/assets/plugin-guide/bluetooth-guide.webp" alt="Better Bluetooth panel showing paired and available devices"></div>
+          <div class="plugin-copy"><div class="plugin-title"><h3>Better Bluetooth</h3><span class="status later">If needed</span></div><p class="why">Pins favorite Bluetooth devices and reconnects them after sleep.</p><p>Install only if Matt regularly uses Bluetooth headphones, a mouse, or another device that fails to reconnect.</p><a class="source" href="https://github.com/AROICE-HQ/omarchy-bluetooth" target="_blank" rel="noopener noreferrer">View source and attribution</a></div>
+        </article>
+        <article class="plugin">
+          <div class="preview"><img src="/assets/plugin-guide/tray-guide.webp" alt="Omarchy Tray drawer holding several bar widgets"></div>
+          <div class="plugin-copy"><div class="plugin-title"><h3>Omarchy Tray</h3><span class="status later">If needed</span></div><p class="why">Moves extra bar widgets into a slide-out drawer.</p><p>Add it only if the four recommended plugins make the top bar feel crowded; it also needs a separate tray-replacement step.</p><a class="source" href="https://github.com/TyRichards/omarchy-tray" target="_blank" rel="noopener noreferrer">View source and attribution</a></div>
+        </article>
+        <article class="plugin">
+          <div class="preview"><img src="/assets/plugin-guide/decent-workspaces-guide.webp" alt="Decent Workspaces bar showing workspace numbers and app icons"></div>
+          <div class="plugin-copy"><div class="plugin-title"><h3>Decent Workspaces</h3><span class="status later">Maybe later</span></div><p class="why">Makes workspace numbers more informative by adding application icons.</p><p>Expose is the easier first choice. Revisit this only after Matt is comfortable with Omarchy workspaces.</p><a class="source" href="https://github.com/TheTrueFerret/omarchy-decent-workspaces" target="_blank" rel="noopener noreferrer">View source and attribution</a></div>
+        </article>
+      </div>
+    </section>
+
+    <section aria-labelledby="skip-now">
+      <div class="section-head"><h2 id="skip-now">Skip for this setup</h2><p>These overlap the selected tools, add a more advanced interaction model, or do not support this computer.</p></div>
+      <div class="plugins">
+        <article class="plugin">
+          <div class="preview"><img src="/assets/plugin-guide/omapager-guide.webp" alt="Omapager panel showing grouped notifications"></div>
+          <div class="plugin-copy"><div class="plugin-title"><h3>Omapager</h3><span class="status skip">Do not combine</span></div><p class="why">A capable replacement notification system with grouping, snoozing, and replies.</p><p>It overlaps Notification Center and introduces more configuration and optional phone-integration dependencies.</p><a class="source" href="https://github.com/ryanrhughes/omapager" target="_blank" rel="noopener noreferrer">View source and attribution</a></div>
+        </article>
+        <article class="plugin">
+          <div class="preview"><img src="/assets/plugin-guide/vimarchy-guide.webp" alt="Vimarchy overlay demonstrating keyboard-based window navigation"></div>
+          <div class="plugin-copy"><div class="plugin-title"><h3>Vimarchy</h3><span class="status skip">Skip for Matt</span></div><p class="why">Adds Vim-style keyboard hints and window actions.</p><p>It is aimed at advanced keyboard users and would give Matt another control system to learn.</p><a class="source" href="https://github.com/clickety-clacks/vimarchy" target="_blank" rel="noopener noreferrer">View source and attribution</a></div>
+        </article>
+        <article class="plugin">
+          <div class="preview"><img src="/assets/plugin-guide/omaland-guide.webp" alt="Omaland panel with Hyprland appearance controls"></div>
+          <div class="plugin-copy"><div class="plugin-title"><h3>Omaland</h3><span class="status skip">Skip initially</span></div><p class="why">Provides live visual customization for gaps, borders, opacity, and other Hyprland styling.</p><p>It does not improve Matt's daily CRM workflow and creates more settings that can be changed accidentally.</p><a class="source" href="https://github.com/bobby-nicholas/omaland" target="_blank" rel="noopener noreferrer">View source and attribution</a></div>
+        </article>
+        <article class="plugin">
+          <div class="preview"><img src="/assets/plugin-guide/omdrop-guide.webp" alt="Omdrop panel displaying nearby Apple AirDrop devices"></div>
+          <div class="plugin-copy"><div class="plugin-title"><h3>Omdrop</h3><span class="status skip">Not for this HP</span></div><p class="why">Adds AirDrop support to Apple Silicon Macs running Omarchy.</p><p>Matt's HP is not Apple Silicon. This plugin requires a specialized wireless driver and elevated setup, so it is incompatible with this machine.</p><a class="source" href="https://github.com/brentkearney/omdrop-plugin" target="_blank" rel="noopener noreferrer">View source and attribution</a></div>
+        </article>
+      </div>
+    </section>
+
+    <details class="owner-details">
+      <summary>Owner details</summary>
+      <div><p>Omarchy already includes plugin management under <strong>Setup &gt; Plugins</strong> and the <code>omarchy plugin</code> command. The separate owner runbook records the reviewed Git revisions, backups, four approved commands, verification, and rollback steps.</p><p>This page is intentionally read-only. Matt reviews; Josh or the agent installs.</p></div>
+    </details>
+    <footer>Preview images are local, reduced-size copies from each plugin's MIT-licensed repository and link back to their source for attribution. Review completed September 28, 2026.</footer>
+  </main>
+</body>
+</html>
