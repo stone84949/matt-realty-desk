@@ -20,8 +20,12 @@ Follow-up Coach, and Marketing Writer use the stronger local `qwen3:1.7b` model.
 The selected mode applies to both typed and spoken requests. It can search contacts,
 draft messages, answer questions, and prepare contacts or reminders.
 It cannot contact people, and record-changing actions always require confirmation.
-When `espeak-ng` is installed, replies can be read aloud entirely on the Dell.
-The dedicated launcher and `Super+A` open the Assistant screen directly.
+When `espeak-ng` is installed, replies can be read aloud entirely on the HP.
+The dedicated launcher and `Super+Ctrl+A` open the Assistant screen directly.
+`Super+A` opens Codex, the HP's primary computer assistant.
+
+Contacts include a street address, apartment or unit, city, state, and ZIP code.
+Address fields are searchable and are preserved in CSV and vCard imports and CSV exports.
 
 ## Quick check
 

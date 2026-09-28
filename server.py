@@ -63,6 +63,11 @@ def initialize() -> None:
           last_name TEXT NOT NULL DEFAULT '',
           email TEXT NOT NULL DEFAULT '',
           phone TEXT NOT NULL DEFAULT '',
+          street_address TEXT NOT NULL DEFAULT '',
+          address_line_2 TEXT NOT NULL DEFAULT '',
+          city TEXT NOT NULL DEFAULT '',
+          state TEXT NOT NULL DEFAULT '',
+          postal_code TEXT NOT NULL DEFAULT '',
           type TEXT NOT NULL DEFAULT 'Prospect',
           stage TEXT NOT NULL DEFAULT 'New',
           source TEXT NOT NULL DEFAULT '',
@@ -107,6 +112,10 @@ def initialize() -> None:
         CREATE INDEX IF NOT EXISTS idx_activities_contact ON activities(contact_id, occurred_at);
         PRAGMA optimize;
         """)
+        existing_columns = {item[1] for item in conn.execute("PRAGMA table_info(contacts)")}
+        for column in ("street_address", "address_line_2", "city", "state", "postal_code"):
+            if column not in existing_columns:
+                conn.execute(f"ALTER TABLE contacts ADD COLUMN {column} TEXT NOT NULL DEFAULT ''")
 
 
 def rows(query: str, params: tuple = ()) -> list[dict]:
@@ -264,6 +273,14 @@ def action_preview(action: str, args: dict) -> str:
         details = [clean(args.get("name"), 200), clean(args.get("relationship"), 50) or "Prospect"]
         if args.get("phone"): details.append(clean(args["phone"], 50))
         if args.get("email"): details.append(clean(args["email"], 250))
+        address = ", ".join(filter(None, (
+            clean(args.get("street_address"), 250),
+            clean(args.get("address_line_2"), 100),
+            clean(args.get("city"), 100),
+            clean(args.get("state"), 50),
+            clean(args.get("postal_code"), 30),
+        )))
+        if address: details.append(address)
         return "Create contact: " + " · ".join(details)
     if action == "create_followup":
         details = [clean(args.get("task"), 300)]
@@ -294,8 +311,13 @@ def execute_staged(token: str) -> dict:
         parts = full_name.split(None, 1); first = parts[0]; last = parts[1] if len(parts) > 1 else ""
         stamp = now()
         with db() as conn:
-            cur = conn.execute("""INSERT INTO contacts(first_name,last_name,email,phone,type,stage,source,notes,email_permission,created_at,updated_at)
-                VALUES(?,?,?,?,?,'New','Voice command',?,'Not asked',?,?)""", (first, last, clean(args.get("email"),250), clean(args.get("phone"),50), clean(args.get("relationship"),50) or "Prospect", clean(args.get("notes")), stamp, stamp))
+            cur = conn.execute("""INSERT INTO contacts(first_name,last_name,email,phone,street_address,address_line_2,city,state,postal_code,type,stage,source,notes,email_permission,created_at,updated_at)
+                VALUES(?,?,?,?,?,?,?,?,?,?,'New','Voice command',?,'Not asked',?,?)""", (
+                    first, last, clean(args.get("email"),250), clean(args.get("phone"),50),
+                    clean(args.get("street_address"),250), clean(args.get("address_line_2"),100),
+                    clean(args.get("city"),100), clean(args.get("state"),50), clean(args.get("postal_code"),30),
+                    clean(args.get("relationship"),50) or "Prospect", clean(args.get("notes")), stamp, stamp,
+                ))
             item_id = cur.lastrowid
         return {"ok": True, "message": f"Created {full_name} as a new contact.", "contact_id": item_id}
     if action == "create_followup":
@@ -383,8 +405,8 @@ class Handler(SimpleHTTPRequestHandler):
                 sql = "SELECT * FROM contacts WHERE archived=0"
                 params = []
                 if q:
-                    sql += " AND (first_name||' '||last_name LIKE ? OR email LIKE ? OR phone LIKE ?)"
-                    params += [f"%{q}%"] * 3
+                    sql += " AND (first_name||' '||last_name LIKE ? OR email LIKE ? OR phone LIKE ? OR street_address LIKE ? OR address_line_2 LIKE ? OR city LIKE ? OR state LIKE ? OR postal_code LIKE ?)"
+                    params += [f"%{q}%"] * 8
                 if stage:
                     sql += " AND stage=?"; params.append(stage)
                 sql += " ORDER BY updated_at DESC"
@@ -399,8 +421,9 @@ class Handler(SimpleHTTPRequestHandler):
                 cid = int(path.split("/")[3])
                 return self.send_json(rows("SELECT * FROM activities WHERE contact_id=? ORDER BY occurred_at DESC", (cid,)))
             if path == "/api/export/contacts.csv":
-                contacts = rows("SELECT first_name,last_name,email,phone,type,stage,source,email_permission,notes FROM contacts WHERE archived=0 ORDER BY last_name,first_name")
-                output = io.StringIO(); writer = csv.DictWriter(output, fieldnames=contacts[0].keys() if contacts else ["first_name","last_name","email","phone","type","stage","source","email_permission","notes"])
+                export_fields = ["first_name","last_name","email","phone","street_address","address_line_2","city","state","postal_code","type","stage","source","email_permission","notes"]
+                contacts = rows(f"SELECT {','.join(export_fields)} FROM contacts WHERE archived=0 ORDER BY last_name,first_name")
+                output = io.StringIO(); writer = csv.DictWriter(output, fieldnames=export_fields)
                 writer.writeheader(); writer.writerows(contacts)
                 data = output.getvalue().encode()
                 self.send_response(200); self.send_header("Content-Type", "text/csv; charset=utf-8"); self.send_header("Content-Disposition", "attachment; filename=matt-realty-contacts.csv"); self.send_header("Content-Length", str(len(data))); self.end_headers(); return self.wfile.write(data)
@@ -422,9 +445,14 @@ class Handler(SimpleHTTPRequestHandler):
                 return self.send_bytes(synthesize_speech(require(data.get("text"), "Reply")), "audio/wav")
             if path == "/api/contacts":
                 stamp = now()
-                values = (require(data.get("first_name"), "First name"), clean(data.get("last_name"),100), clean(data.get("email"),250), clean(data.get("phone"),50), clean(data.get("type"),50) or "Prospect", clean(data.get("stage"),50) or "New", clean(data.get("source"),100), clean(data.get("notes")), clean(data.get("email_permission"),50) or "Not asked", clean(data.get("next_follow_up_at"),40) or None, stamp, stamp)
+                values = (
+                    require(data.get("first_name"), "First name"), clean(data.get("last_name"),100), clean(data.get("email"),250), clean(data.get("phone"),50),
+                    clean(data.get("street_address"),250), clean(data.get("address_line_2"),100), clean(data.get("city"),100), clean(data.get("state"),50), clean(data.get("postal_code"),30),
+                    clean(data.get("type"),50) or "Prospect", clean(data.get("stage"),50) or "New", clean(data.get("source"),100), clean(data.get("notes")),
+                    clean(data.get("email_permission"),50) or "Not asked", clean(data.get("next_follow_up_at"),40) or None, stamp, stamp,
+                )
                 with db() as conn:
-                    cur = conn.execute("""INSERT INTO contacts(first_name,last_name,email,phone,type,stage,source,notes,email_permission,next_follow_up_at,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)""", values)
+                    cur = conn.execute("""INSERT INTO contacts(first_name,last_name,email,phone,street_address,address_line_2,city,state,postal_code,type,stage,source,notes,email_permission,next_follow_up_at,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", values)
                     cid = cur.lastrowid
                 return self.send_json(row("SELECT * FROM contacts WHERE id=?", (cid,)), 201)
             if path == "/api/import/contacts":
@@ -455,8 +483,13 @@ class Handler(SimpleHTTPRequestHandler):
                                 duplicate = conn.execute("SELECT id FROM contacts WHERE archived=0 AND replace(replace(replace(replace(replace(phone,' ',''),'-',''),'(',''),')',''),'+','') LIKE ?", (f"%{digits[-10:]}",)).fetchone()
                         if duplicate:
                             skipped += 1; continue
-                        conn.execute("""INSERT INTO contacts(first_name,last_name,email,phone,type,stage,source,notes,email_permission,created_at,updated_at)
-                            VALUES(?,?,?,?,?,?,?,?,?,?,?)""", (first, last, email, phone, clean(item.get("type"),50) or "Prospect", "New", clean(item.get("source"),100) or "Imported contact", clean(item.get("notes")), "Not asked", stamp, stamp))
+                        conn.execute("""INSERT INTO contacts(first_name,last_name,email,phone,street_address,address_line_2,city,state,postal_code,type,stage,source,notes,email_permission,created_at,updated_at)
+                            VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", (
+                                first, last, email, phone, clean(item.get("street_address"),250), clean(item.get("address_line_2"),100),
+                                clean(item.get("city"),100), clean(item.get("state"),50), clean(item.get("postal_code"),30),
+                                clean(item.get("type"),50) or "Prospect", "New", clean(item.get("source"),100) or "Imported contact",
+                                clean(item.get("notes")), "Not asked", stamp, stamp,
+                            ))
                         imported += 1
                 return self.send_json({"imported": imported, "duplicates_skipped": skipped, "invalid_skipped": invalid}, 201)
             if path == "/api/tasks":
@@ -505,9 +538,9 @@ class Handler(SimpleHTTPRequestHandler):
                     return self.send_json({"kind":"confirmation", "action":action, "preview":action_preview(action,args), "token":token, "confidence":confidence})
                 if action == "search_contacts":
                     query = require(args.get("query"), "Search")[:200]
-                    found = rows("""SELECT id,first_name,last_name,email,phone,type,stage,next_follow_up_at FROM contacts
-                        WHERE archived=0 AND (first_name||' '||last_name LIKE ? OR email LIKE ? OR phone LIKE ? OR type LIKE ? OR stage LIKE ?)
-                        ORDER BY updated_at DESC LIMIT 10""", tuple([f"%{query}%"] * 5))
+                    found = rows("""SELECT id,first_name,last_name,email,phone,street_address,address_line_2,city,state,postal_code,type,stage,next_follow_up_at FROM contacts
+                        WHERE archived=0 AND (first_name||' '||last_name LIKE ? OR email LIKE ? OR phone LIKE ? OR type LIKE ? OR stage LIKE ? OR street_address LIKE ? OR city LIKE ? OR state LIKE ? OR postal_code LIKE ?)
+                        ORDER BY updated_at DESC LIMIT 10""", tuple([f"%{query}%"] * 9))
                     return self.send_json({"kind":"search", "query":query, "results":found, "confidence":confidence})
                 if action in {"draft_message", "ask_assistant"}:
                     delegated = clean(args.get("request") or args.get("question") or prompt, 2000)
@@ -542,7 +575,7 @@ class Handler(SimpleHTTPRequestHandler):
                 with db() as conn: conn.execute("UPDATE tasks SET completed_at=? WHERE id=?", (completed, task_id))
                 return self.send_json({"ok": True})
             if path.startswith("/api/contacts/"):
-                cid = int(path.rsplit("/",1)[1]); allowed = {"first_name","last_name","email","phone","type","stage","source","notes","email_permission","next_follow_up_at","archived"}
+                cid = int(path.rsplit("/",1)[1]); allowed = {"first_name","last_name","email","phone","street_address","address_line_2","city","state","postal_code","type","stage","source","notes","email_permission","next_follow_up_at","archived"}
                 updates = {k: (clean(v) if k != "archived" else int(bool(v))) for k,v in data.items() if k in allowed}
                 if not updates: raise ValueError("No supported fields")
                 updates["updated_at"] = now(); fields = ",".join(f"{k}=?" for k in updates)
