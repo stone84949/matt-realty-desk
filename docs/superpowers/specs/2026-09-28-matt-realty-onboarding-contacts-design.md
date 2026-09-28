@@ -132,7 +132,7 @@ The repository root gains `AGENTS.md` with a standing role for the HP's agent:
 
 | Action | Default behavior |
 |---|---|
-| Direct form save submitted by Matt | Perform transactionally, then summarize with Undo |
+| Direct form review and Save submitted by Matt | Treat the visible Save as the single confirmation, perform transactionally, then summarize with Undo |
 | Local assistant read/search | Perform locally and report only to Matt's local session |
 | Local assistant additive single-record action | Perform only through the allowlisted deterministic router, then show an Undo receipt |
 | Replace a populated value or remove a value | Preview the exact field change and require one confirmation |
@@ -157,6 +157,13 @@ aggregate counts, redacted diagnostics, and synthetic fixtures. It must not send
 contact values, raw vCards, CRM rows, photos, notes, or exports to an external
 model, tool, log, or transcript. Any PII egress requires explicit, narrowly
 scoped owner authorization that names the data and destination.
+
+Automatic-action Undo receipts are single-use inverse operations stored with
+the affected record id, expected row version, expiry, and action id. They expire
+after ten minutes and refuse to run if the record or any dependent row changed
+after the action. Undoing a newly created contact is allowed only while no later
+activity, reminder, method, address, or detail depends on it; otherwise the UI
+routes Matt to an explicit reviewed edit and never cascades newer work.
 
 ## Contact Data Model
 
@@ -186,6 +193,7 @@ Add `contact_methods`:
 | `value` | Original display value |
 | `normalized_value` | Search and duplicate comparison value |
 | `is_primary` | Preferred value for compact surfaces |
+| `is_shared` | Explicit owner-marked household/shared identifier; never inferred automatically |
 | `sort_order` | Original/imported order |
 | timestamps | Audit and synchronization support |
 
@@ -195,6 +203,10 @@ nonnegative; and `(contact_id, kind, normalized_value)` is unique. A partial
 unique index permits at most one primary method per contact and kind. The
 service invariant requires at least one primary when values of that kind exist
 and promotes the first remaining value when a primary is removed.
+`is_shared` defaults to false. Import never sets it automatically. Matt may mark
+or unmark a phone or email as shared only through the contact detail form, where
+the visible review-and-Save action is the confirmation. Any identifier already
+attached to multiple contacts is treated as a merge conflict until reviewed.
 
 ### Contact Addresses
 
@@ -244,10 +256,11 @@ returning preferred summary projections while new detail payloads include the
 complete collections.
 
 Migration and every write assert that projections equal the selected primary
-rows. A reconciliation command reports and repairs drift transactionally. An
-old-code rollback may read the projections, but writes are placed in read-only
-maintenance mode until the new service is restored; otherwise old code could
-create divergence.
+rows. A reconciliation command reports and repairs drift transactionally. The
+deployment preserves and verifies a pre-migration database copy. Rollback stops
+the service, restores that database copy with owner-only permissions, switches
+to the old revision, and only then restarts. The old binary must never run
+against the migrated database because it cannot enforce normalized authority.
 
 ## vCard Import Architecture
 
@@ -299,19 +312,23 @@ one column of a kind.
 8. Success reports imported, merged, duplicate, invalid, conflict, and
    preserved-detail counts plus the verified pre-import backup path.
 
-Every browser mutation requires an exact loopback Host allowlist, same-origin
-Origin validation, an established SameSite session cookie, strict JSON content
-type where applicable, and a cryptographically random CSRF header token. CORS
-is disabled. Preview tokens are random, single-use, memory-only, expire after
-ten minutes, and are bound to the source hash and browser session. Restart,
-expiry, replay, or a changed file requires a new preview.
+Every API request that reads or writes CRM data requires an exact loopback Host
+allowlist and a valid SameSite session. Sensitive reads also reject cross-site
+Fetch Metadata and disallowed Origin values. Every mutation additionally
+requires same-origin Origin validation, strict JSON content type where
+applicable, and a cryptographically random CSRF header token. CORS is disabled.
+Exports use a CSRF-protected POST that returns the attachment to the initiating
+session; there is no unauthenticated GET export URL. Preview tokens are random,
+single-use, memory-only, expire after ten minutes, and are bound to the source
+hash and browser session. Restart, expiry, replay, or a changed file requires a
+new preview.
 
 ## Duplicate and Merge Rules
 
 Duplicate detection compares all normalized phone and email values, not only
 the preferred ones. A merge candidate is automatic only when every matching
 identifier resolves to the same single existing contact and none of those
-identifiers is marked shared. If phone and email point to different contacts,
+identifiers has its persisted `is_shared` flag. If phone and email point to different contacts,
 an identifier is shared by a household, or more than one candidate remains,
 the card is a Conflict. The preview shows each card's intended Create, Merge,
 Conflict, or Invalid outcome before confirmation. Merge adds nonduplicate
@@ -355,16 +372,19 @@ or malformed images remain raw-only and are never rendered.
 ### Export
 
 CSV export remains a portable summary and gains clearly named columns for
-additional values where practical. Display exports neutralize spreadsheet
-formula prefixes (`=`, `+`, `-`, and `@`) without changing canonical stored
-values. A new vCard export preserves repeatable
+additional values where practical. Display exports neutralize values whose
+first meaningful character after any Unicode whitespace or control prefix is
+`=`, `+`, `-`, or `@`, and values beginning with tab, carriage return, or line
+feed, without changing canonical stored values. A new vCard export preserves repeatable
 values, labels, addresses, photos, Unicode, and additional fields. Export never
 marks a contact as subscribed or sends anything.
 
 ## Privacy and Security
 
-- The HTTP service remains bound to `127.0.0.1` and enforces the Host, Origin,
-  session, CSRF, content-type, and no-CORS write boundary defined above.
+- The HTTP service remains bound to `127.0.0.1`; every CRM-data API enforces the
+  Host and session boundary, sensitive reads enforce same-site metadata, and
+  mutations enforce Origin, CSRF, content type, and no-CORS controls as defined
+  above.
 - Real contact fixtures, imports, database files, backups, and photos stay under
   the local data directory and are ignored by Git.
 - Local data directories are owner-only (`0700`) and files are owner-only
@@ -380,7 +400,11 @@ marks a contact as subscribed or sends anything.
 - Contact exports emailed to the same account are deleted from Inbox, Sent, and
   Downloads only after a verified CRM backup exists.
 - Deleting a live contact cascades its normalized rows and live source links
-  after confirmation. Existing immutable backups retain the old data for the
+  after confirmation. Its `contact_import_cards` row is replaced by a
+  nonreversible tombstone containing only hashes, parser version, warning codes,
+  timestamps, and deletion reason; raw vCard text and photo BLOBs are removed
+  from the live database. Because each source card has its own row, other
+  contacts from the same imported file remain intact. Existing immutable backups retain the old data for the
   existing 30-day backup window; the UI states this before purge. An explicit
   owner-approved privacy purge may remove named backup files only after listing
   the exact files and stating that recovery will be impossible.
@@ -434,14 +458,20 @@ Required fixtures use invented data and cover:
 - Action-policy behavior for automatic local edits versus confirmed outbound,
   bulk, destructive, and security-sensitive actions.
 - Host/Origin rejection, CSRF absence, wrong content type, token replay,
-  session mismatch, expiry, and restart invalidation.
+  session mismatch, expiry, restart invalidation, and hostile-host
+  GET/search/export requests.
 - Stored-XSS strings, unsafe URL schemes, SVG/HTML photos, MIME mismatch,
   oversized images, and excessive dimensions.
 - Pre-import and post-commit backup failures, owner-only permissions, restore,
   retention, and deletion semantics.
 - Cross-contact and shared-household identifier conflicts.
-- Spreadsheet-formula-leading CSV values.
+- Shared-identifier marking/unmarking and merge behavior.
+- Spreadsheet-formula-leading CSV values, including tab, CR, LF, control, and
+  whitespace-prefixed formulas.
 - Maintenance-agent PII egress policy using synthetic/redacted fixtures.
+- Single-use Undo, expiry, replay refusal, row-version mismatch, and protection
+  of later dependent work.
+- Rollback refusal until the verified pre-migration database is restored.
 
 The supplied real test vCard is used only for a local verification pass after
 synthetic regression tests are green. Assertions use aggregate counts and must
