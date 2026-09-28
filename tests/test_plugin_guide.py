@@ -10,6 +10,7 @@ GUIDE = STATIC / "plugin-guide.html"
 RUNBOOK = ROOT / "docs" / "PLUGIN-SETUP.md"
 CATALOG = ROOT / "docs" / "plugins-reviewed.json"
 NOTICES = ROOT / "docs" / "THIRD_PARTY_NOTICES.md"
+STATIC_NOTICES = STATIC / "plugin-notices.html"
 
 
 class PluginGuideTests(unittest.TestCase):
@@ -83,6 +84,7 @@ class PluginGuideTests(unittest.TestCase):
     def test_every_bundled_asset_has_complete_mit_provenance(self):
         catalog = json.loads(CATALOG.read_text(encoding="utf-8"))
         notices = NOTICES.read_text(encoding="utf-8")
+        static_notices = STATIC_NOTICES.read_text(encoding="utf-8")
         self.assertIn("MIT License", notices)
         for plugin in catalog["plugins"]:
             with self.subTest(plugin=plugin["name"]):
@@ -90,6 +92,9 @@ class PluginGuideTests(unittest.TestCase):
                 self.assertIn(plugin["repository"], notices)
                 self.assertIn(plugin["source_path"], notices)
                 self.assertIn(plugin["copyright"], notices)
+                self.assertIn(plugin["asset"], static_notices)
+                self.assertIn(plugin["repository"], static_notices)
+                self.assertIn(plugin["reviewed_sha"], static_notices)
 
 
 if __name__ == "__main__":
