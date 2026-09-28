@@ -480,7 +480,8 @@ not emit its contact values.
 ## Rollout
 
 1. Implement schema, constraints, `ContactService`, backfill, reconciliation,
-   security middleware, and old-code read-only rollback behavior.
+   security middleware, pre-migration backup verification, and restore-only
+   rollback behavior.
 2. Implement and verify parser, provenance, preview, transactional import,
    backup/restore, and aggregate-only real-vCard checks.
 3. Implement multi-value contact detail/edit/search/export surfaces.
