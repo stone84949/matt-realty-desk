@@ -6,7 +6,6 @@ __pycache__/
 .DS_Store
 .wrangler/
 .dev.vars*
-cloud/dist/
-cloud/**/dist/
+dist/
 cloud/wrangler.deploy.json
 node_modules/
