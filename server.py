@@ -17,6 +17,7 @@ import time
 import urllib.error
 import urllib.request
 import uuid
+from contextlib import closing
 from datetime import datetime, timedelta, timezone
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -137,6 +138,59 @@ def require(value: object, field: str) -> str:
 
 def clean(value: object, limit: int = 5000) -> str:
     return str(value or "").strip()[:limit]
+
+
+IMPORT_FIELDS = {
+    "first_name": 100, "last_name": 100, "email": 250, "phone": 50,
+    "street_address": 250, "address_line_2": 100, "city": 100,
+    "state": 50, "postal_code": 30, "type": 50, "source": 100, "notes": 5000,
+}
+
+
+def import_contacts(incoming: object) -> dict:
+    if not isinstance(incoming, list) or not incoming:
+        raise ValueError("No contacts were found in that file")
+    if len(incoming) > 5000:
+        raise ValueError("Import up to 5,000 contacts at a time")
+    prepared = []
+    invalid = 0
+    for index, item in enumerate(incoming, 1):
+        if not isinstance(item, dict):
+            invalid += 1
+            continue
+        contact = {}
+        for field, limit in IMPORT_FIELDS.items():
+            value = str(item.get(field) or "").strip()
+            if len(value) > limit:
+                raise ValueError(f"Import row {index}: {field} exceeds {limit} characters. Nothing was imported.")
+            contact[field] = value
+        if not contact["first_name"] and contact["last_name"]:
+            contact["first_name"], contact["last_name"] = contact["last_name"], ""
+        if not contact["first_name"]:
+            invalid += 1
+            continue
+        contact["email"] = contact["email"].lower()
+        contact["type"] = contact["type"] or "Prospect"
+        contact["source"] = contact["source"] or "Imported contact"
+        prepared.append(tuple(contact[field] for field in IMPORT_FIELDS))
+    fields = ",".join(IMPORT_FIELDS)
+    matches = " AND ".join(f"{field}=?" for field in IMPORT_FIELDS)
+    placeholders = ",".join("?" for _ in IMPORT_FIELDS)
+    imported = skipped = 0
+    stamp = now()
+    with closing(db()) as conn, conn:
+        conn.execute("BEGIN IMMEDIATE")
+        for values in prepared:
+            # Shared household details do not establish that two people are the same.
+            if conn.execute(f"SELECT id FROM contacts WHERE archived=0 AND {matches}", values).fetchone():
+                skipped += 1
+                continue
+            conn.execute(
+                f"INSERT INTO contacts({fields},stage,email_permission,created_at,updated_at) VALUES({placeholders},?,?,?,?)",
+                (*values, "New", "Not asked", stamp, stamp),
+            )
+            imported += 1
+    return {"imported": imported, "duplicates_skipped": skipped, "invalid_skipped": invalid}
 
 
 def resolve_spoken_due_date(prompt: str, model_value: object) -> str:
@@ -334,9 +388,9 @@ def execute_staged(token: str) -> dict:
 
 
 def backup() -> Path:
-    stamp = datetime.now().strftime("%Y-%m-%d_%H%M%S")
+    stamp = datetime.now().strftime("%Y-%m-%d_%H%M%S_%f")
     target = BACKUP_DIR / f"realty-{stamp}.db"
-    with db() as source, sqlite3.connect(target) as destination:
+    with closing(db()) as source, closing(sqlite3.connect(target)) as destination:
         source.backup(destination)
     cutoff = datetime.now() - timedelta(days=30)
     for item in BACKUP_DIR.glob("realty-*.db"):
@@ -456,42 +510,7 @@ class Handler(SimpleHTTPRequestHandler):
                     cid = cur.lastrowid
                 return self.send_json(row("SELECT * FROM contacts WHERE id=?", (cid,)), 201)
             if path == "/api/import/contacts":
-                incoming = data.get("contacts")
-                if not isinstance(incoming, list) or not incoming:
-                    raise ValueError("No contacts were found in that file")
-                if len(incoming) > 5000:
-                    raise ValueError("Import up to 5,000 contacts at a time")
-                stamp = now(); imported = 0; skipped = 0; invalid = 0
-                with db() as conn:
-                    for item in incoming:
-                        if not isinstance(item, dict):
-                            invalid += 1; continue
-                        first = clean(item.get("first_name"), 100)
-                        last = clean(item.get("last_name"), 100)
-                        email = clean(item.get("email"), 250).lower()
-                        phone = clean(item.get("phone"), 50)
-                        if not first and last:
-                            first, last = last, ""
-                        if not first:
-                            invalid += 1; continue
-                        duplicate = None
-                        if email:
-                            duplicate = conn.execute("SELECT id FROM contacts WHERE archived=0 AND lower(email)=?", (email,)).fetchone()
-                        if not duplicate and phone:
-                            digits = re.sub(r"\D", "", phone)
-                            if len(digits) >= 7:
-                                duplicate = conn.execute("SELECT id FROM contacts WHERE archived=0 AND replace(replace(replace(replace(replace(phone,' ',''),'-',''),'(',''),')',''),'+','') LIKE ?", (f"%{digits[-10:]}",)).fetchone()
-                        if duplicate:
-                            skipped += 1; continue
-                        conn.execute("""INSERT INTO contacts(first_name,last_name,email,phone,street_address,address_line_2,city,state,postal_code,type,stage,source,notes,email_permission,created_at,updated_at)
-                            VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", (
-                                first, last, email, phone, clean(item.get("street_address"),250), clean(item.get("address_line_2"),100),
-                                clean(item.get("city"),100), clean(item.get("state"),50), clean(item.get("postal_code"),30),
-                                clean(item.get("type"),50) or "Prospect", "New", clean(item.get("source"),100) or "Imported contact",
-                                clean(item.get("notes")), "Not asked", stamp, stamp,
-                            ))
-                        imported += 1
-                return self.send_json({"imported": imported, "duplicates_skipped": skipped, "invalid_skipped": invalid}, 201)
+                return self.send_json(import_contacts(data.get("contacts")), 201)
             if path == "/api/tasks":
                 title = require(data.get("title"), "Task")
                 with db() as conn:
