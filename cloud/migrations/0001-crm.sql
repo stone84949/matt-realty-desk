@@ -53,4 +53,3 @@
         CREATE INDEX IF NOT EXISTS idx_tasks_due ON tasks(completed_at, due_at);
         CREATE INDEX IF NOT EXISTS idx_activities_contact ON activities(contact_id, occurred_at);
         PRAGMA optimize;
-        
