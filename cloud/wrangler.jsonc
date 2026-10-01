@@ -1,0 +1,13 @@
+{
+  "$schema": "https://raw.githubusercontent.com/cloudflare/workers-sdk/main/packages/wrangler/config-schema.json",
+  "name": "matt-realty-desk-demo",
+  "main": "worker.mjs",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": true,
+  "preview_urls": false,
+  "assets": { "directory": "../static", "binding": "ASSETS", "run_worker_first": true },
+  "limits": { "cpu_ms": 50 },
+  "observability": { "enabled": false },
+  "vars": { "ACCESS_ISSUER": "", "ACCESS_AUDIENCE": "", "ALLOWED_EMAILS": "" },
+  "d1_databases": [{ "binding": "DB", "database_name": "matt-realty-desk-demo", "database_id": "00000000-0000-0000-0000-000000000000", "migrations_dir": "migrations" }]
+}

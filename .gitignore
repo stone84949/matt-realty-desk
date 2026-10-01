@@ -4,3 +4,9 @@ __pycache__/
 *.db-shm
 *.db-wal
 .DS_Store
+.wrangler/
+.dev.vars*
+cloud/dist/
+cloud/**/dist/
+cloud/wrangler.deploy.json
+node_modules/

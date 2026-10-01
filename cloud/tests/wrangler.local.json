@@ -1,0 +1,7 @@
+{
+  "name": "matt-crm-local-probe",
+  "main": "d1-probe.mjs",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": false,
+  "d1_databases": [{ "binding": "DB", "database_name": "matt-crm-local-probe", "database_id": "00000000-0000-0000-0000-000000000000", "migrations_dir": "../migrations" }]
+}
