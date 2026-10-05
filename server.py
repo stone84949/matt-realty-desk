@@ -456,7 +456,10 @@ class Handler(SimpleHTTPRequestHandler):
             if path == "/api/contacts":
                 q = parse_qs(parsed.query).get("q", [""])[0].strip()
                 stage = parse_qs(parsed.query).get("stage", [""])[0].strip()
-                sql = "SELECT * FROM contacts WHERE archived=0"
+                archived = parse_qs(parsed.query).get("archived", ["0"])[0]
+                if archived not in ("0", "1"):
+                    return self.send_json({"error": "archived must be 0 or 1"}, 400)
+                sql = "SELECT * FROM contacts WHERE archived=" + archived
                 params = []
                 if q:
                     sql += " AND (first_name||' '||last_name LIKE ? OR email LIKE ? OR phone LIKE ? OR street_address LIKE ? OR address_line_2 LIKE ? OR city LIKE ? OR state LIKE ? OR postal_code LIKE ?)"
