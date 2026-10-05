@@ -1,3 +1,4 @@
+import {handleAssistant,assistantUsage} from './assistant.mjs';
 import { verifyAccess, validWriteRequest } from './auth.mjs';
 import { handleApi } from './api.mjs';
 function secure(response) {
@@ -19,6 +20,8 @@ export default {
             return secure(Response.json({ error: 'Use the CRM form on this site.' }, { status: 403 }));
         try {
             const path = new URL(request.url).pathname;
+            if(path==='/api/assistant'&&request.method==='POST')return secure(await handleAssistant(request,env));
+            if(path==='/api/assistant/usage'&&request.method==='GET')return secure(Response.json(await assistantUsage(env)));
             if (['/api/voice/transcribe', '/api/tts', '/api/command/interpret', '/api/command/execute'].includes(path))
                 return secure(Response.json({ error: 'Assistant and voice are not connected in the hosted demo.' }, { status: 503 }));
             if (path.startsWith('/api/'))

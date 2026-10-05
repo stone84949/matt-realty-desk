@@ -4,6 +4,7 @@
   "main": "worker.mjs",
   "compatibility_date": "2026-10-01",
   "workers_dev": true,
+  "ai": {"binding": "AI"},
   "preview_urls": false,
   "assets": { "directory": "../static", "binding": "ASSETS", "run_worker_first": true },
   "limits": { "cpu_ms": 50 },
