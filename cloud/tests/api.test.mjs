@@ -57,3 +57,19 @@ test('search accepts long text beyond D1 LIKE pattern limit', async (t) => { con
 test('5000-record import needs at most 50 statements', async (t) => { const env = setup(t); let count = 0; const batch = env.DB.batch.bind(env.DB); env.DB.batch = async (statements) => { count += statements.length; return batch(statements); }; const contacts = Array.from({ length: 5000 }, (_, i) => ({ first_name: `Generated ${i}` })); const r = await call(env, '/api/import/contacts', 'POST', { contacts }); assert.equal(r.status, 201); assert.equal((await r.json()).imported, 5000); assert.ok(count <= 50); });
 test('escaped control notes split into byte-bounded chunks unchanged', async (t) => { const env = setup(t); const contacts = Array.from({ length: 200 }, (_, i) => ({ first_name: `Control ${i}`, notes: '\u0001'.repeat(5000) })); const result = await call(env, '/api/import/contacts', 'POST', { contacts }); assert.equal(result.status, 201); assert.equal((await result.json()).imported, 200); const rows = await (await call(env, '/api/contacts')).json(); assert.equal(rows[0].notes, '\u0001'.repeat(5000)); });
 test('NUL input is rejected before SQLite can silently shorten it', async (t) => { const env = setup(t); assert.equal((await call(env, '/api/import/contacts', 'POST', { contacts: [{ first_name: 'OK' }, { first_name: 'Bad', notes: 'a\u0000b' }] })).status, 400); assert.deepEqual(await (await call(env, '/api/contacts')).json(), []); });
+
+test('deleted contacts are recoverable with history and omitted from active lists', async (t) => {
+ const env=setup(t);
+ const c=await (await call(env,'/api/contacts','POST',{first_name:'Recover',notes:'Keep this',email_permission:'Unsubscribed'})).json();
+ await call(env,`/api/contacts/${c.id}/activity`,'POST',{summary:'History retained'});
+ await call(env,`/api/contacts/${c.id}`,'PATCH',{archived:1});
+ assert.equal((await (await call(env,'/api/contacts')).json()).length,0);
+ const removed=await (await call(env,'/api/contacts?archived=1')).json();
+ assert.equal(removed.length,1);assert.equal(removed[0].id,c.id);
+ assert.equal((await (await call(env,`/api/contacts/${c.id}/activity`)).json()).length,1);
+ assert.equal((await call(env,'/api/contacts?archived=wrong')).status,400);
+ await call(env,`/api/contacts/${c.id}`,'PATCH',{archived:0});
+ const restored=await (await call(env,'/api/contacts')).json();
+ assert.equal(restored[0].notes,'Keep this');assert.equal(restored[0].email_permission,'Unsubscribed');
+ assert.equal((await (await call(env,'/api/contacts?archived=1')).json()).length,0);
+});

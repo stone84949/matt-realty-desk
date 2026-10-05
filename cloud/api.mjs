@@ -137,7 +137,9 @@ export async function handleApi(request, env) {
                 return json({ ok: true });
             if (path === '/api/contacts') {
                 const q = text(url.searchParams.get('q'), 'q', 250), stage = text(url.searchParams.get('stage'), 'stage', 50);
-                let sql = 'SELECT * FROM contacts WHERE archived=0', args = [];
+                const archived = url.searchParams.get('archived') || '0';
+                if (!['0', '1'].includes(archived)) fail('archived must be 0 or 1');
+                let sql = 'SELECT * FROM contacts WHERE archived=' + archived, args = [];
                 if (q) {
                     sql += " AND (" + ["first_name||' '||last_name", 'email', 'phone', 'street_address', 'address_line_2', 'city', 'state', 'postal_code'].map(k => `instr(lower(${k}), lower(?)) > 0`).join(' OR ') + ')';
                     args = Array(8).fill(q);

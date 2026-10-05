@@ -44,6 +44,19 @@ class ContactImportTests(unittest.TestCase):
         except urllib.error.HTTPError as response:
             return response.code, json.load(response)
 
+    def test_deleted_contacts_list_is_recoverable(self):
+        self.import_contacts([{"first_name": "Archived synthetic"}])
+        with server.db() as conn:
+            conn.execute("UPDATE contacts SET archived=1")
+        root = f"http://127.0.0.1:{self.http.server_port}/api/contacts"
+        with urllib.request.urlopen(root) as response:
+            self.assertEqual(json.load(response), [])
+        with urllib.request.urlopen(root + "?archived=1") as response:
+            self.assertEqual(len(json.load(response)), 1)
+        with self.assertRaises(urllib.error.HTTPError) as error:
+            urllib.request.urlopen(root + "?archived=bad")
+        self.assertEqual(error.exception.code, 400)
+
     def test_distinct_people_keep_shared_email_and_phone(self):
         contacts = [
             {"first_name": "Alex", "last_name": "Example", "email": "family@example.test", "phone": "555-010-1000"},
