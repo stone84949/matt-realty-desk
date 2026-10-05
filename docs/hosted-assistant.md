@@ -42,3 +42,10 @@ before enabling AI. Old local Python assistant remains unchanged. Voice disabled
 
 Sources: Cloudflare Workers AI bindings and model documentation (checked Oct5).
 Campaign saving/sending and automatic off-provider backups remain separate work.
+
+Acceptance: October 5, 2026. Independent re-review of807ba84 APPROVE; prior
+hosted-guide and whitespace findings fixed.52Node14Python, checkJs, syntax,
+Wrangler build, synthetic provider/application cases and browser preset/context
+checks passed. User-approved final cap is100 shared AI attempts/day. PR4 merge
+f347331 contains this reviewed implementation. Live release remains guarded and
+requires backup, additive migration and real-provider browser verification.
