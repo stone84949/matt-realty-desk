@@ -48,3 +48,9 @@ test('failed contact deletion keeps editor open and re-enables button',async()=>
  vm.runInContext(fragment,context);await context.changeContactArchive({id:7,first_name:'Synthetic',archived:0},button);
  assert.equal(button.disabled,false);assert.equal(modal.open,true);assert.equal(messages[0][0],'Save failed');
 });
+
+test('hosted guide reflects enabled assistant capability',async()=>{
+ const guide=await readFile(new URL('../../static/quick-start.js',import.meta.url),'utf8');
+ const line=guide.split('\n').find(line=>line.includes("document.querySelector('#assistant').innerHTML="));
+ for(const enabled of [true,false]){const element={innerHTML:''};const context=vm.createContext({runtime:{assistant:enabled},document:{querySelector:()=>element}});vm.runInContext(line,context);assert.match(element.innerHTML,enabled?/100|presets/:/unavailable/)}
+});

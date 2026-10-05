@@ -71,8 +71,8 @@ reimports may create additional records. Secondary contact values stay in Notes
 in this compatibility release. Imported consent remains Not asked. Embedded NUL
 and oversized fields are rejected before writes to avoid truncation.
 
-Local AI, voice recognition and speech synthesis are unavailable in the hosted
-demo. Campaigns remain drafts; no email, text or social post is sent. Preview URLs
+Local AI and voice remain unavailable in the hosted runtime. The hosted writing
+assistant uses the native Cloudflare AI binding after migration0002. Campaigns remain drafts; no email, text or social post is sent. Preview URLs
 are disabled and requests to any enabled route still pass the Worker JWT gate.
 JWKS fetches share an in-flight request and use a 30-second refresh cooldown;
 signing-key rotation can cause a short fail-closed delay during that interval.
