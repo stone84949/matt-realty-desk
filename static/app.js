@@ -36,9 +36,22 @@ const fields = {
 };
 function openModal(kind,title,values={}){$('#deleteContact').hidden=true;$('#modalTitle').textContent=title;$('#modalFields').innerHTML=fields[kind];$('#modalForm').dataset.kind=kind;$('#modalForm').dataset.id=values.id||'';for(const [k,v] of Object.entries(values)){const el=$(`#modalForm [name="${k}"]`);if(el){if(el.tagName==='SELECT'&&v&&!Array.from(el.options).some(o=>o.value===v))el.add(new Option(v,v));el.value=k==='next_follow_up_at'&&v?String(v).slice(0,10):(v??'')}}if(kind==='task'){api('/api/contacts').then(cs=>{$('[name="contact_id"]').innerHTML='<option value="">No contact</option>'+cs.map(c=>`<option value="${c.id}">${esc(c.first_name)} ${esc(c.last_name)}</option>`).join('')}).catch(err=>notify(err.message,true))}if(kind==='import'){$('#saveModal').textContent='Import contacts';state.importRows=[];$('#contactFile').onchange=readContactFile}else{$('#saveModal').textContent='Save'}$('#modal').showModal()}
 function openContact(c){openModal('contact',`Edit ${c.first_name}`,c);const button=$('#deleteContact');button.hidden=false;button.textContent=c.archived?'Restore contact':'Delete contact';button.onclick=()=>changeContactArchive(c,button)}
+function confirmContactDeletion(contact){
+  const dialog=$('#deleteConfirm');
+  $('#deleteConfirmText').textContent=`Remove ${contact.first_name} ${contact.last_name||''} from current contacts? You can restore them from Deleted contacts. Notes and reminders are kept.`;
+  return new Promise(resolve=>{
+    const finish=value=>{dialog.oncancel=null;dialog.close();resolve(value)};
+    $('#keepContact').onclick=()=>finish(false);
+    $('#confirmDeleteContact').onclick=()=>finish(true);
+    dialog.oncancel=e=>{e.preventDefault();finish(false)};
+    dialog.showModal();$('#keepContact').focus();
+  });
+}
 async function changeContactArchive(contact,button){
   const archived=contact.archived?0:1;
-  if(archived&&!confirm(`Delete ${contact.first_name} ${contact.last_name||''} from current contacts? You can restore them from Deleted contacts. Notes and reminders are kept.`))return;
+  if(button.disabled)return;
+  button.disabled=true;
+  if(archived&&!await confirmContactDeletion(contact)){button.disabled=false;return;}
   button.disabled=true;
   try{
     await api(`/api/contacts/${contact.id}`,{method:'PATCH',body:JSON.stringify({archived})});

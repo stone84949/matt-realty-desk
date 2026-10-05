@@ -33,7 +33,7 @@ test('contact deletion requires confirmation and only patches archive state',asy
  const fragment=source.slice(source.indexOf('async function changeContactArchive'),source.indexOf('async function saveModal'));
  for(const [archived,confirmed,shouldCall] of [[0,false,false],[0,true,true],[1,false,true]]){
   const calls=[],button={disabled:false},modal={open:true,close(){this.open=false}};
-  const context=vm.createContext({confirm:()=>confirmed,$:()=>modal,api:async(...args)=>calls.push(args),notify(){},loadSummary:async()=>{},loadContacts:async()=>{}});
+  const context=vm.createContext({confirmContactDeletion:async()=>confirmed,$:()=>modal,api:async(...args)=>calls.push(args),notify(){},loadSummary:async()=>{},loadContacts:async()=>{}});
   vm.runInContext(fragment,context);
   await context.changeContactArchive({id:7,first_name:'Synthetic',archived},button);
   assert.equal(calls.length,shouldCall?1:0);
@@ -44,7 +44,7 @@ test('contact deletion requires confirmation and only patches archive state',asy
 test('failed contact deletion keeps editor open and re-enables button',async()=>{
  const fragment=source.slice(source.indexOf('async function changeContactArchive'),source.indexOf('async function saveModal'));
  const button={disabled:false},modal={open:true},messages=[];
- const context=vm.createContext({confirm:()=>true,$:()=>modal,api:async()=>{throw Error('Save failed')},notify:(...args)=>messages.push(args),loadSummary:async()=>{},loadContacts:async()=>{}});
+ const context=vm.createContext({confirmContactDeletion:async()=>true,$:()=>modal,api:async()=>{throw Error('Save failed')},notify:(...args)=>messages.push(args),loadSummary:async()=>{},loadContacts:async()=>{}});
  vm.runInContext(fragment,context);await context.changeContactArchive({id:7,first_name:'Synthetic',archived:0},button);
  assert.equal(button.disabled,false);assert.equal(modal.open,true);assert.equal(messages[0][0],'Save failed');
 });
