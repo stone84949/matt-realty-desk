@@ -9,3 +9,5 @@ __pycache__/
 dist/
 cloud/wrangler.deploy.json
 node_modules/
+
+cloud/tests/ai-probe.local.json

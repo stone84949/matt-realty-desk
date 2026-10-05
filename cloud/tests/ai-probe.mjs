@@ -1,0 +1,2 @@
+export default {async fetch(request,env){if(request.method!=='POST')return new Response('Synthetic evaluation only');const {model,messages}=await request.json();if(!['@cf/meta/llama-3.3-70b-instruct-fp8-fast','@cf/zai-org/glm-4.7-flash'].includes(model))return new Response('Invalid model',{status:400});try{return Response.json(await env.AI.run(model,{messages,max_tokens:600,temperature:0.2,chat_template_kwargs:{enable_thinking:false}}))}catch{return Response.json({error:'Inference failed'},{status:502})}}};
+

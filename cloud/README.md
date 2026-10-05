@@ -76,3 +76,16 @@ demo. Campaigns remain drafts; no email, text or social post is sent. Preview UR
 are disabled and requests to any enabled route still pass the Worker JWT gate.
 JWKS fetches share an in-flight request and use a 30-second refresh cooldown;
 signing-key rotation can cause a short fail-closed delay during that interval.
+
+## Hosted writing assistant
+
+The reviewed assistant design is in `docs/hosted-assistant.md`. Apply migration
+0002 before enabling the AI binding. It stores daily attempt counts only; core
+business snapshot format remains unchanged. Recovery must apply all migrations
+before enabling the assistant. The100-attempt shared daily cap is separate from
+Cloudflare's account usage allowance. No model tool can send or modify records.
+
+`PREVIEW_PORT=5055 PREVIEW_ASSISTANT=1 node cloud/tests/local-preview.mjs` enables
+an explicitly synthetic local answer fixture for UI testing only. It is not proof
+of model quality. The optional evaluation scripts send invented task cases through
+a loopback Wrangler probe; keep its account-specific `.local.json` untracked.

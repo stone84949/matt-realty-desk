@@ -42,3 +42,13 @@ test('unknown routes/methods and unavailable local features do not imply success
     assert.equal((await worker.fetch(request('/api/voice/transcribe', 'POST', {}), e)).status, 503);
     e.DB.close();
 });
+
+test('assistant endpoints retain authentication and same-origin write protection',async()=>{
+ const e=env();e.DB.exec(readFileSync(new URL('../migrations/0002-assistant.sql',import.meta.url),'utf8'));let calls=0;e.AI={run:async()=>{calls++;return {response:'Draft'}}};
+ assert.equal((await worker.fetch(new Request('https://crm.example.test/api/assistant',{method:'POST',body:'{}'}),e)).status,401);
+ assert.equal((await worker.fetch(request('/api/assistant','POST',{preset:'general',prompt:'Hi'},{Origin:'https://evil.example'}),e)).status,403);
+ assert.equal(calls,0);
+ assert.equal((await worker.fetch(request('/api/assistant','POST',{preset:'general',prompt:'Hi'}),e)).status,200);
+ assert.equal(calls,1);
+ const usage=await (await worker.fetch(request('/api/assistant/usage'),e)).json();assert.equal(usage.used,1);assert.equal(usage.limit,100);e.DB.close();
+});

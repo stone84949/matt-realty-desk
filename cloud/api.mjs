@@ -132,7 +132,7 @@ export async function handleApi(request, env) {
         const url = new URL(request.url), path = url.pathname, method = request.method, DB = env.DB;
         if (method === 'GET') {
             if (path === '/api/runtime')
-                return json({ hosted: true, assistant: false, voice: false, backup: 'download' });
+                return json({ hosted: true, assistant: Boolean(env.AI), voice: false, backup: 'download' });
             if (path === '/api/health')
                 return json({ ok: true });
             if (path === '/api/contacts') {
