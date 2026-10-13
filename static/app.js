@@ -3,11 +3,12 @@ const $$ = (s) => [...document.querySelectorAll(s)];
 let runtime=null;
 const runtimeReady=detectRuntime();
 async function detectRuntime(){const response=await fetch('/api/runtime',{credentials:'same-origin'});if(response.status===404){runtime={hosted:false,assistant:true,voice:true};return runtime}if(!response.ok)throw new Error('Unable to verify runtime. Sign in again or reload.');runtime=await response.json();return runtime}
-const state = { contacts: [], tasks: [], campaigns: [], importRows: [] };
+const state = { contacts: [], tasks: [], campaigns: [], importRows: [], todayContacts: [], timeZone: 'America/New_York', todayReady: false };
 const savedTheme = localStorage.getItem('matt-realty-theme') || 'command';
 document.documentElement.dataset.theme = savedTheme;
 const esc = (v='') => String(v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const date = v => v ? new Date(v + (v.length===10?'T12:00:00':'')).toLocaleDateString([], {month:'short',day:'numeric',year:'numeric'}) : 'Not set';
+const date = v => {const day=CrmToday.day(v,state.timeZone);return day?new Date(day+'T12:00:00Z').toLocaleDateString([], {timeZone:'UTC',month:'short',day:'numeric',year:'numeric'}):'No date chosen'};
+const deskDay = () => CrmToday.day(new Date().toISOString(),state.timeZone);
 const address = c => [c.street_address,c.address_line_2,c.city,[c.state,c.postal_code].filter(Boolean).join(' ')].filter(Boolean).join(', ');
 
 async function api(path, options={}) {
@@ -18,15 +19,58 @@ async function api(path, options={}) {
   return data;
 }
 function notify(message, bad=false){const n=$('#notice');n.textContent=message;n.className=bad?'error':'';n.style.display='block';setTimeout(()=>n.style.display='none',3500)}
-function go(view){$$('.nav').forEach(b=>b.classList.toggle('active',b.dataset.view===view));$$('.view').forEach(v=>v.classList.toggle('active',v.id===view+'View'));$('#pageTitle').textContent={today:'Today',contacts:'Contacts',followups:'Follow-ups',campaigns:'Campaigns',assistant:'Assistant',help:'Help'}[view];if(view==='contacts')loadContacts().catch(e=>notify(e.message,true));if(view==='followups')loadTasks().catch(e=>notify(e.message,true));if(view==='campaigns')loadCampaigns().catch(e=>notify(e.message,true))}
+function go(view){$$('.nav').forEach(b=>b.classList.toggle('active',b.dataset.view===view));$$('.view').forEach(v=>v.classList.toggle('active',v.id===view+'View'));$('#pageTitle').textContent={today:'Today',contacts:'Contacts',followups:'Follow-ups',campaigns:'Campaigns',assistant:'Assistant',help:'Help'}[view];if(view==='today')loadSummary().catch(e=>notify(e.message,true));if(view==='contacts')loadContacts().catch(e=>notify(e.message,true));if(view==='followups')loadTasks().catch(e=>notify(e.message,true));if(view==='campaigns')loadCampaigns().catch(e=>notify(e.message,true))}
 
-async function loadSummary(){const s=await api('/api/summary');$('#statContacts').textContent=s.contacts;$('#statActive').textContent=s.active;$('#statDue').textContent=s.due;$('#statFollowups').textContent=s.overdueFollowUps;await loadTasks();renderToday()}
+async function loadSummary(){
+ try{
+  const [s,tasks,contacts,campaigns]=await Promise.all([api('/api/summary'),api('/api/tasks'),api('/api/contacts'),api('/api/campaigns')]);
+  state.timeZone=s.timeZone||Intl.DateTimeFormat().resolvedOptions().timeZone;state.tasks=tasks;state.todayContacts=contacts;state.campaigns=campaigns;state.todayReady=true;
+  $('#statContacts').textContent=s.contacts;$('#statActive').textContent=s.active;
+  $('#dateLabel').textContent=new Date().toLocaleDateString([], {timeZone:state.timeZone,weekday:'long',month:'long',day:'numeric'});
+  $('#deskTimezone').textContent=`Dates follow ${state.timeZone.replaceAll('_',' ')}.`;
+  $('#taskList').innerHTML=taskHtml(visibleTasks());renderToday();
+ }catch(error){state.todayReady=false;for(const id of ['todayTasks','overdueTasks','upcomingTasks','recentContacts','todayCampaigns'])$('#'+id).textContent='Could not refresh this list. Reload to try again.';$('#statDue').textContent='—';$('#statFollowups').textContent='—';throw error}
+}
+function visibleTasks(){const ids=new Set(state.todayContacts.map(c=>Number(c.id)));return state.tasks.filter(t=>!t.completed_at&&(!t.contact_id||ids.has(Number(t.contact_id))))}
 async function loadContacts(){const q=encodeURIComponent($('#contactSearch').value);const stage=encodeURIComponent($('#stageFilter').value);state.contacts=await api(`/api/contacts?q=${q}&stage=${stage}&archived=${$('#contactStatus').value}`);$('#contactRows').innerHTML=state.contacts.map(c=>`<tr data-id="${c.id}"><td><strong>${esc(c.first_name)} ${esc(c.last_name)}</strong></td><td><span class="pill">${esc(c.stage)}</span></td><td>${esc(c.type)}</td><td>${esc(address(c)||'—')}</td><td>${date(c.next_follow_up_at)}</td><td>${esc(c.phone||c.email||'—')}</td><td><button type="button" class="ghost" data-edit="${c.id}">Edit</button> <button type="button" class="ghost" data-archive="${c.id}">${c.archived?'Restore':'Delete'}</button></td></tr>`).join('');$('#contactsEmpty').style.display=state.contacts.length?'none':'block';$$('#contactRows tr').forEach(tr=>tr.onclick=()=>openContact(state.contacts.find(c=>c.id===+tr.dataset.id)));$$('[data-edit]').forEach(b=>b.onclick=e=>{e.stopPropagation();openContact(state.contacts.find(c=>c.id===+b.dataset.edit))});$$('[data-archive]').forEach(b=>b.onclick=e=>{e.stopPropagation();changeContactArchive(state.contacts.find(c=>c.id===+b.dataset.archive),b)});$('#contactsEmpty').textContent=$('#contactStatus').value==='1'?'No deleted contacts match these filters.':'No contacts match these filters. Add a contact or clear the filters.';}
-async function loadTasks(){state.tasks=await api('/api/tasks');$('#taskList').innerHTML=taskHtml(state.tasks);$('#taskList').classList.toggle('empty',!state.tasks.length);renderToday()}
-function taskHtml(tasks){return tasks.length?tasks.map(t=>`<div class="list-item"><input class="check" type="checkbox" data-task="${t.id}" aria-label="Complete reminder"><div class="list-main"><strong>${esc(t.title)}</strong><span>${t.contact_name?esc(t.contact_name)+' · ':''}${date(t.due_at)}${t.priority==='High'?' · High priority':''}</span></div></div>`).join(''):'No open reminders.'}
-function renderToday(){const today=new Date();today.setHours(23,59,59,999);const due=state.tasks.filter(t=>!t.due_at||new Date(t.due_at+'T12:00:00')<=today).slice(0,6);$('#todayTasks').innerHTML=taskHtml(due);$$('[data-task]').forEach(x=>x.onchange=completeTask)}
-async function completeTask(e){try{await api(`/api/tasks/${e.target.dataset.task}`,{method:'PATCH',body:JSON.stringify({completed:true})});notify('Reminder completed');await loadSummary()}catch(err){e.target.checked=false;notify(err.message,true)}}
-async function loadCampaigns(){state.campaigns=await api('/api/campaigns');$('#campaignList').innerHTML=state.campaigns.length?state.campaigns.map(c=>`<article><span class="pill">${esc(c.status)}</span><h2>${esc(c.name)}</h2><p class="meta">${esc(c.channel)} · ${esc(c.audience)}</p><p>${esc(c.subject||'No subject yet')}</p></article>`).join(''):'<div class="panel empty">No campaign drafts yet. Start with one useful monthly update.</div>'}
+async function loadTasks(){await loadSummary()}
+function taskHtml(tasks,empty='No open reminders.'){
+ return tasks.length?tasks.map(t=>`<div class="list-item"><div class="list-main"><strong>${esc(t.title)}</strong><span>${t.contact_name?esc(t.contact_name)+' · ':''}${date(t.due_at)}</span><div class="item-actions">${t.contact_id?`<button type="button" class="primary" data-open-contact="${t.contact_id}">Open contact</button>`:''}<button type="button" class="${t.contact_id?'ghost':'primary'}" data-complete-task="${t.id}">Mark complete</button>${t.contact_id?`<button type="button" class="ghost" data-draft-contact="${t.contact_id}" data-reason="${esc(t.title)}">Help me draft</button>`:''}</div></div></div>`).join(''):`<p class="empty">${empty}</p>`;
+}
+function todayHtml(items,empty){return items.map(item=>item.kind==='task'?taskHtml([item]):`<div class="list-item"><div class="list-main"><strong>${esc(item.contact_name)}</strong><span>Contact follow-up · ${date(item.due_at)}</span><div class="item-actions"><button type="button" class="primary" data-open-contact="${item.contact_id}">Open contact</button><button type="button" class="ghost" data-complete-contact="${item.contact_id}">Mark follow-up complete</button></div></div></div>`).join('')||`<p class="empty">${empty}</p>`}
+function renderToday(){
+ if(!state.todayReady)return;
+ const groups=CrmToday.groups(state.tasks,state.todayContacts,deskDay(),state.timeZone);
+ $('#statDue').textContent=groups.today.length;$('#statFollowups').textContent=groups.overdue.length;
+ $('#todayTasks').innerHTML=todayHtml(groups.today,'No follow-ups due today.');$('#overdueTasks').innerHTML=todayHtml(groups.overdue,'No overdue follow-ups.');$('#upcomingTasks').innerHTML=todayHtml(groups.upcoming,'No reminders in the next seven days.');
+ $('#unscheduledPanel').hidden=!groups.unscheduled.length;$('#unscheduledTasks').innerHTML=todayHtml(groups.unscheduled,'No undated reminders.');
+ $('#recentContacts').innerHTML=state.todayContacts.slice(0,5).map(c=>`<div class="list-item"><div class="list-main"><strong>${esc(c.first_name)} ${esc(c.last_name)}</strong><span>Updated ${date(c.updated_at)}</span><button type="button" class="primary" data-open-contact="${c.id}">Open contact</button></div></div>`).join('')||'<p class="empty">No contacts yet. Add your first contact below.</p>';
+ const drafts=state.campaigns.filter(c=>c.status==='Draft');$('#todayCampaigns').innerHTML=drafts.map(c=>`<div class="list-item"><div class="list-main"><strong>${esc(c.name)}</strong><span>Saved draft · ${date(c.updated_at)}</span><button type="button" class="primary" data-go="campaigns">Review drafts</button></div></div>`).join('')||'<p class="empty">No campaign drafts awaiting review.</p>';
+ bindDeskActions();
+}
+function bindDeskActions(){
+ $$('[data-open-contact]').forEach(b=>b.onclick=()=>{const c=state.todayContacts.find(c=>Number(c.id)===Number(b.dataset.openContact));if(c)openContact(c)});
+ $$('[data-complete-task]').forEach(b=>b.onclick=()=>completeTask({target:b}));
+ $$('[data-complete-contact]').forEach(b=>b.onclick=()=>completeContactFollowup(b));
+ $$('[data-draft-contact]').forEach(b=>{b.hidden=!(runtime?.hosted&&runtime.assistant);b.onclick=()=>draftFollowup(Number(b.dataset.draftContact),b.dataset.reason||'')});
+ $$('#todayView [data-go]').forEach(b=>b.onclick=()=>go(b.dataset.go));
+}
+async function completeContactFollowup(button){
+ if(button.disabled)return;button.disabled=true;
+ try{await api(`/api/contacts/${button.dataset.completeContact}`,{method:'PATCH',body:JSON.stringify({next_follow_up_at:''})})}catch(error){notify(error.message,true);button.disabled=false;return}
+ notify('Contact follow-up completed');
+ if($('#modal').open&&Number($('#modalForm').dataset.id)===Number(button.dataset.completeContact)){
+  const field=$('#modalForm [name="next_follow_up_at"]');if(field)field.value='';
+  const saved=JSON.parse($('#modalForm').dataset.savedFields||'{}');saved.next_follow_up_at='';$('#modalForm').dataset.savedFields=JSON.stringify(saved);button.hidden=true;
+ }
+ try{await loadSummary()}catch{notify('Follow-up completed. Daily lists could not refresh; reload to retry.',true)}
+}
+async function draftFollowup(id,reason=''){
+ if(!runtime?.hosted||!runtime.assistant||typeof startHostedFollowup!=='function'){notify('Draft assistance is unavailable. Your reminder is still saved.',true);return}
+ go('assistant');try{await startHostedFollowup(id,reason)}catch(error){notify(error.message,true)}
+}
+async function completeTask(e){if(e.target.disabled)return;e.target.disabled=true;try{await api(`/api/tasks/${e.target.dataset.completeTask}`,{method:'PATCH',body:JSON.stringify({completed:true})});notify('Reminder completed');await loadSummary();if($('#modal').open&&$('#modalForm').dataset.kind==='contact'){const c=state.todayContacts.find(c=>Number(c.id)===Number($('#modalForm').dataset.id));if(c)await showContactHistory(c)}}catch(err){e.target.disabled=false;notify(err.message,true)}}
+async function loadCampaigns(){state.campaigns=await api('/api/campaigns');$('#campaignList').innerHTML=state.campaigns.length?state.campaigns.map(c=>`<article><span class="pill">${esc(c.status)}</span><h2>${esc(c.name)}</h2><p class="meta">${esc(c.channel)} · ${esc(c.audience)}</p><p>${esc(c.subject||'No subject yet')}</p><p class="draft-body">${esc(c.body||'No message saved yet.')}</p></article>`).join(''):'<div class="panel empty">No campaign drafts yet. Start with one useful monthly update.</div>'}
 
 const fields = {
   contact: `<div class="form-grid"><div class="field"><label>First name *</label><input name="first_name" required></div><div class="field"><label>Last name</label><input name="last_name"></div><div class="field"><label>Phone</label><input name="phone"></div><div class="field"><label>Email</label><input name="email" type="email"></div><div class="field full"><label>Street address</label><input name="street_address" autocomplete="street-address"></div><div class="field full"><label>Apartment, suite, or unit</label><input name="address_line_2"></div><div class="field"><label>City</label><input name="city" autocomplete="address-level2"></div><div class="field"><label>State</label><input name="state" autocomplete="address-level1"></div><div class="field"><label>ZIP code</label><input name="postal_code" inputmode="numeric" autocomplete="postal-code"></div><div class="field"><label>Relationship</label><select name="type"><option>Prospect</option><option>Buyer</option><option>Seller</option><option>Past Client</option><option>Referral Partner</option><option>Vendor</option></select></div><div class="field"><label>Stage</label><select name="stage"><option>New</option><option>Nurturing</option><option>Active</option><option>Under Contract</option><option>Closed</option><option>Inactive</option></select></div><div class="field"><label>How they found Matt</label><input name="source"></div><div class="field"><label>Next follow-up</label><input name="next_follow_up_at" type="date"></div><div class="field full"><label>Email permission</label><select name="email_permission"><option>Not asked</option><option>Subscribed</option><option>Unsubscribed</option></select></div><div class="field full"><label>Notes</label><textarea name="notes" rows="4"></textarea></div></div>`,
@@ -34,8 +78,46 @@ const fields = {
   campaign: `<div class="form-grid"><div class="field full"><label>Draft name *</label><input name="name" required placeholder="October homeowner update"></div><div class="field"><label>Channel</label><select name="channel"><option>Email</option><option>Postal mail</option><option>Phone list</option></select></div><div class="field"><label>Audience</label><select name="audience"><option>All opted-in contacts</option><option>Active buyers</option><option>Active sellers</option><option>Past clients</option><option>Referral partners</option></select></div><div class="field full"><label>Email subject or mailer title</label><input name="subject"></div><div class="field full"><label>Draft message</label><textarea name="body" rows="7"></textarea></div></div>`,
   import: `<div class="import-help"><strong>Use the file you already have.</strong><br>Choose an iPhone vCard (.vcf) or a CSV from Excel, Outlook, Google, or another contact app.</div><div class="field"><label>Contact file</label><input id="contactFile" name="contact_file" type="file" accept=".csv,.vcf,text/csv,text/vcard" required></div><div id="importPreview" class="import-preview">No file selected.</div><p class="muted">Only identical active records are skipped. People sharing an email or phone are kept. Reimporting changed records may add another entry. Imported contacts start as “New,” with email permission set to “Not asked.”</p>`
 };
-function openModal(kind,title,values={}){$('#deleteContact').hidden=true;$('#modalTitle').textContent=title;$('#modalFields').innerHTML=fields[kind];$('#modalForm').dataset.kind=kind;$('#modalForm').dataset.id=values.id||'';for(const [k,v] of Object.entries(values)){const el=$(`#modalForm [name="${k}"]`);if(el){if(el.tagName==='SELECT'&&v&&!Array.from(el.options).some(o=>o.value===v))el.add(new Option(v,v));el.value=k==='next_follow_up_at'&&v?String(v).slice(0,10):(v??'')}}if(kind==='task'){api('/api/contacts').then(cs=>{$('[name="contact_id"]').innerHTML='<option value="">No contact</option>'+cs.map(c=>`<option value="${c.id}">${esc(c.first_name)} ${esc(c.last_name)}</option>`).join('')}).catch(err=>notify(err.message,true))}if(kind==='import'){$('#saveModal').textContent='Import contacts';state.importRows=[];$('#contactFile').onchange=readContactFile}else{$('#saveModal').textContent='Save'}$('#modal').showModal()}
-function openContact(c){openModal('contact',`Edit ${c.first_name}`,c);const button=$('#deleteContact');button.hidden=false;button.textContent=c.archived?'Restore contact':'Delete contact';button.onclick=()=>changeContactArchive(c,button)}
+function openModal(kind,title,values={}){$('#deleteContact').hidden=true;$('#modalTitle').textContent=title;$('#modalFields').innerHTML=fields[kind];$('#modalForm').dataset.kind=kind;$('#modalForm').dataset.id=values.id||'';for(const [k,v] of Object.entries(values)){const el=$(`#modalForm [name="${k}"]`);if(el){if(el.tagName==='SELECT'&&v&&!Array.from(el.options).some(o=>o.value===v))el.add(new Option(v,v));el.value=k==='next_follow_up_at'&&v?String(v).slice(0,10):(v??'')}}if(kind==='task'){setupQuickDates();const select=$('#modalForm [name="contact_id"]');api('/api/contacts').then(cs=>{if(!select.isConnected)return;select.innerHTML='<option value="">No contact</option>'+cs.map(c=>`<option value="${c.id}">${esc(c.first_name)} ${esc(c.last_name)}</option>`).join('');select.value=values.contact_id||''}).catch(err=>notify(err.message,true))}if(kind==='import'){$('#saveModal').textContent='Import contacts';state.importRows=[];$('#contactFile').onchange=readContactFile}else{$('#saveModal').textContent='Save'}$('#modal').showModal()}
+function setupQuickDates(){
+ const input=$('#modalForm [name="due_at"]');input.value=deskDay();input.required=true;
+ const buttons=document.createElement('div');buttons.className='item-actions';buttons.innerHTML='<button type="button" class="ghost" data-date-offset="0">Today</button><button type="button" class="ghost" data-date-offset="1">Tomorrow</button><button type="button" class="ghost" data-date-offset="7">In one week</button><button type="button" class="ghost" id="chooseReminderDate">Choose a date</button>';input.parentElement.append(buttons);
+ $$('[data-date-offset]').forEach(b=>b.onclick=()=>input.value=CrmToday.addDays(deskDay(),Number(b.dataset.dateOffset)));$('#chooseReminderDate').onclick=()=>{input.focus();input.showPicker?.()};
+}
+function openContact(c){
+ openModal('contact',`${c.first_name} ${c.last_name||''}`,c);
+ const button=$('#deleteContact');button.hidden=false;button.textContent=c.archived?'Restore contact':'Delete contact';button.onclick=()=>changeContactArchive(c,button);
+ const actions=document.createElement('section');actions.className='contact-actions';actions.innerHTML=`<h3>Contact actions</h3><div class="item-actions"><button type="button" class="primary" id="contactAddNote">Add a note</button><button type="button" class="ghost" id="contactFollowup">Schedule a follow-up</button><button type="button" class="ghost" id="contactHistory">View contact history</button>${runtime?.hosted&&runtime.assistant?'<button type="button" class="ghost" id="contactDraft">Help me draft a follow-up</button>':''}</div><div class="item-actions" id="contactShortcuts"></div><div id="contactActionBody" aria-live="polite"></div>`;
+ $('#modalFields').prepend(actions);
+ const shortcuts=$('#contactShortcuts');for(const [value,prefix,label] of [[c.phone,'tel:','Call'],[c.email,'mailto:','Email']])if(value){const link=document.createElement('a');link.className='button ghost';link.href=prefix+encodeURIComponent(value);link.textContent=label;shortcuts.append(link)}
+ $('#modalForm').dataset.savedFields=JSON.stringify(Object.fromEntries(new FormData($('#modalForm')).entries()));
+ if(c.next_follow_up_at&&!c.archived){const complete=document.createElement('button');complete.type='button';complete.className='ghost';complete.textContent='Mark follow-up complete';complete.dataset.completeContact=c.id;actions.querySelector('.item-actions').append(complete);bindDeskActions()}
+ $('#contactAddNote').onclick=()=>showContactNote(c);
+ $('#contactFollowup').disabled=!!c.archived;$('#contactFollowup').onclick=()=>leaveContactFor(()=>openModal('task',`Follow up with ${c.first_name}`,{contact_id:c.id}));
+ $('#contactHistory').onclick=()=>showContactHistory(c);
+ if($('#contactDraft')){$('#contactDraft').disabled=!!c.archived;$('#contactDraft').onclick=()=>leaveContactFor(()=>{$('#modal').close();draftFollowup(c.id)})}
+}
+async function showContactHistory(c){
+ const body=$('#contactActionBody');body.textContent='Loading history…';try{const history=await api(`/api/contacts/${c.id}/activity`);if(!body.isConnected)return;body.innerHTML=`<h3>Saved contact history</h3>${c.notes?`<p><strong>Contact notes</strong><br>${esc(c.notes).replace(/\n/g,'<br>')}</p>`:''}`+history.map(a=>`<article><strong>${esc(a.kind)} · ${date(a.occurred_at)}</strong><p>${esc(a.summary).replace(/\n/g,'<br>')}</p></article>`).join('')+(history.length||c.notes?'':'<p>No notes or activity saved yet.</p>');const tasks=visibleTasks().filter(t=>Number(t.contact_id)===Number(c.id));body.innerHTML+='<h3>Open reminders</h3>'+taskHtml(tasks);bindDeskActions()}catch(error){if(body.isConnected)body.textContent='History could not load. Try View contact history again.'}
+}
+function showContactNote(c){
+ const body=$('#contactActionBody');body.innerHTML='<label for="newContactNote">What would you like to remember?</label><textarea id="newContactNote" rows="3" maxlength="5000"></textarea><button type="button" class="primary" id="saveContactNote">Save note</button>';
+ $('#newContactNote').focus();$('#saveContactNote').onclick=e=>saveContactNote(c,e.target,$('#newContactNote'));
+}
+async function saveContactNote(c,button,input){
+ const summary=input.value.trim();if(!summary){input.focus();return}if(button.disabled)return;button.disabled=true;
+ try{await api(`/api/contacts/${c.id}/activity`,{method:'POST',body:JSON.stringify({kind:'Note',summary})})}catch(error){notify(error.message,true);button.disabled=false;return}
+ input.value='';notify('Note saved');await showContactHistory(c);
+ try{await loadSummary()}catch{notify('Note saved. The daily lists could not refresh; reload to retry.',true)}
+}
+async function leaveContactFor(action){
+ const form=$('#modalForm'),current=JSON.stringify(Object.fromEntries(new FormData(form).entries()));
+ if(current!==form.dataset.savedFields||$('#newContactNote')?.value?.trim()){
+  const dialog=$('#unsavedConfirm');const leave=await new Promise(resolve=>{const finish=value=>{dialog.oncancel=null;dialog.close();resolve(value)};$('#keepEditingContact').onclick=()=>finish(false);$('#leaveContact').onclick=()=>finish(true);dialog.oncancel=e=>{e.preventDefault();finish(false)};dialog.showModal();$('#keepEditingContact').focus()});
+  if(!leave)return;
+ }
+ action();
+}
 function confirmContactDeletion(contact){
   const dialog=$('#deleteConfirm');
   $('#deleteConfirmText').textContent=`Remove ${contact.first_name} ${contact.last_name||''} from current contacts? You can restore them from Deleted contacts. Notes and reminders are kept.`;
@@ -112,11 +194,11 @@ function registerWebMCP(){if(!runtime||runtime.hosted)return;const mc=document.m
 function applyRuntime(){
 if(!runtime.hosted)return;
 $('.system-label').textContent='HOSTED DEMO';$('.sidebar-foot .privacy').textContent='Private contact data';$('.status-chip').textContent='Hosted demo';
-$('#contactsEmpty').textContent='No demo contacts yet. Add an invented person to try the desk.';
+$('#contactsEmpty').textContent='No contacts yet. Add your first contact.';
 $('#helpStorage').innerHTML='<li>Demo records are stored in Cloudflare D1 behind private sign-in.</li><li>Download a full JSON snapshot of contacts, reminders, activity and campaign drafts. D1 Time Travel provides database recovery.</li><li>Keep snapshots privately off Cloudflare. There is no automatic off-machine sync.</li><li>Email sending is off. Campaigns remain drafts.</li><li>Export CSV includes contacts only, not a full backup.</li>';
 $('#backupNow').textContent='Download full snapshot';$$('.local-only').forEach(el=>el.hidden=true);
 $('#assistantView .eyebrow').textContent='Optional assistant';$('#assistantView h2').textContent='Assistant unavailable in this hosted demo';$('#assistantModeNote').textContent='Local AI and voice need the local computer. Contacts, reminders and campaign drafts work here without them.';$('#assistantAnswer').textContent='Use Contacts to edit people, Follow-ups to set reminders, and Campaigns to write drafts. Nothing sends email.';$$('#assistantView button, #assistantView textarea, #assistantView input').forEach(el=>el.disabled=true);$('#voiceStatus').textContent='Local AI and voice are unavailable in the hosted demo.';
-const draft=$('[data-go="assistant"]');draft.dataset.go=runtime.assistant?'assistant':'campaigns';draft.onclick=()=>go(runtime.assistant?'assistant':'campaigns');
+
 }
 async function start(){await runtimeReady;applyRuntime();registerWebMCP();const requestedView=new URLSearchParams(location.search).get('view');if(['today','contacts','followups','campaigns','assistant','help'].includes(requestedView))go(requestedView);await loadSummary();}
 start().catch(e=>{$('.status-chip').textContent='Unavailable';notify(e.message,true)});

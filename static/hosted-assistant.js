@@ -1,3 +1,4 @@
+let startHostedFollowup;
 // Hosted-only writing assistant. The local Python assistant remains unchanged.
 runtimeReady.then(()=>{if(runtime.hosted&&runtime.assistant)installHostedAssistant()}).catch(()=>{});
 function installHostedAssistant(){
@@ -6,7 +7,8 @@ function installHostedAssistant(){
  const prompts={today:'Show my open reminders due today.',summary:'Summarize the selected client notes and identify missing information.',followup:'Draft a friendly concise follow-up using only the selected client notes.',newsletter:'Draft a useful real estate newsletter from these facts: ',social:'Create three social posts using only these supplied facts: ',general:''};
  $$('[data-ai-preset]').forEach(b=>b.onclick=()=>{$('#aiPreset').value=b.dataset.aiPreset;$('#aiPrompt').value=prompts[b.dataset.aiPreset];$('#aiPrompt').focus()});
  $('#aiPreset').onchange=()=>{$('#aiPrompt').value=prompts[$('#aiPreset').value]};
- async function contacts(){try{const rows=await api('/api/contacts');const current=$('#aiContact').value;$('#aiContact').innerHTML='<option value="">No contact — use only my request</option>'+rows.map(c=>`<option value="${c.id}">${esc(c.first_name)} ${esc(c.last_name)}</option>`).join('');$('#aiContact').value=current}catch{$('#aiSource').textContent='Contact choices could not load. Retry opening Assistant.'}}
+ async function contacts(){try{const rows=await api('/api/contacts');const current=$('#aiContact').value;$('#aiContact').innerHTML='<option value="">No contact — use only my request</option>'+rows.map(c=>`<option value="${c.id}">${esc(c.first_name)} ${esc(c.last_name)}</option>`).join('');$('#aiContact').value=current;return rows}catch{$('#aiSource').textContent='Contact choices could not load. Retry opening Assistant.'}}
+ startHostedFollowup=async(id,reason)=>{const rows=await contacts();if(!rows||!rows.some(c=>Number(c.id)===Number(id)))throw new Error('Contact context could not load. Choose a contact in Assistant and retry.');$('#aiPreset').value='followup';$('#aiContact').value=String(id);$('#aiPrompt').value=prompts.followup+(reason?' Reminder: '+reason:'');$('#aiPrompt').focus()};
  function showUsage(u){$('#aiUsage').textContent=`${u.used} of ${u.limit} shared AI attempts used today. Resets 00:00 UTC. Plan my day uses none. This app limit is separate from Cloudflare’s account allowance.`}
  api('/api/assistant/usage').then(showUsage).catch(()=>$('#aiUsage').textContent='Usage unavailable. Try again later.');contacts();
  $('[data-view="assistant"]').addEventListener('click',contacts);
