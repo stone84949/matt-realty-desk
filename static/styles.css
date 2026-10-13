@@ -10,3 +10,5 @@
 .item-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}.item-actions button,.item-actions a{min-height:44px;font-size:1rem}.contact-actions{border-bottom:1px solid var(--line);padding-bottom:20px;margin-bottom:20px}.contact-actions h3{margin-top:0}#contactActionBody{margin-top:16px}#contactActionBody p{overflow-wrap:anywhere;white-space:normal}.list-main{min-width:0;width:100%}.list-main strong,.list-main span{overflow-wrap:anywhere}.list-main>.primary{margin-top:12px}#todayView h2{font-size:1.35rem}.mission-strip p{margin:6px 0 0}dialog{max-height:90vh;overflow-y:auto}#modalFields label{display:block;margin-bottom:6px}#todayView .stats{margin-bottom:20px}@media(max-width:640px){.item-actions button{flex:1 1 140px}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}#todayView .section-actions{align-items:flex-start;gap:12px;flex-direction:column}}
 
 .draft-body{white-space:pre-wrap;overflow-wrap:anywhere}
+#taskList{padding:12px 24px;color:var(--ink)}
+@media(max-width:640px){#taskList{padding:8px 16px}}
