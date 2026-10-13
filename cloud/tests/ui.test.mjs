@@ -3,6 +3,40 @@ import assert from 'node:assert/strict';
 import {readFile,readdir} from 'node:fs/promises';
 import vm from 'node:vm';
 const source=await readFile(new URL('../../static/app.js',import.meta.url),'utf8');
+test('hosted startup supports a Today screen without the old generic draft shortcut',()=>{
+ const body=source.slice(source.indexOf('function applyRuntime'),source.indexOf('async function start'));
+ const context=vm.createContext({runtime:{hosted:true,assistant:true},$:selector=>selector==='[data-go="assistant"]'?null:{},$$:()=>[],go(){}});
+ vm.runInContext(body,context);assert.doesNotThrow(()=>context.applyRuntime());
+});
+test('saved note stays saved when dashboard refresh fails; failed POST retains input',async()=>{
+ const body=source.slice(source.indexOf('async function saveContactNote'),source.indexOf('async function leaveContactFor'));
+ for(const failPost of [false,true]){
+  const button={disabled:false},input={value:'Synthetic note'},messages=[];
+  const context=vm.createContext({api:async()=>{if(failPost)throw Error('Write failed')},notify:(...args)=>messages.push(args),showContactHistory:async()=>{},loadSummary:async()=>{throw Error('Refresh failed')}});
+  vm.runInContext(body,context);await context.saveContactNote({id:7},button,input);
+  assert.equal(input.value,failPost?'Synthetic note':'');assert.equal(button.disabled,!failPost);
+  assert.match(messages.at(-1)[0],failPost?/Write failed/:/Note saved/);
+ }
+});
+test('contact completion persists through refresh failure and updates only saved date',async()=>{
+ const body=source.slice(source.indexOf('async function completeContactFollowup'),source.indexOf('async function draftFollowup'));
+ const button={disabled:false,dataset:{completeContact:'7'}},field={value:'2026-10-14'},form={dataset:{id:'7',savedFields:'{"phone":"original","next_follow_up_at":"2026-10-14"}'}},messages=[];
+ const elements={'#modal':{open:true},'#modalForm':form,'#modalForm [name="next_follow_up_at"]':field};
+ const context=vm.createContext({$:key=>elements[key],api:async(path,options)=>{assert.equal(path,'/api/contacts/7');assert.deepEqual(JSON.parse(options.body),{next_follow_up_at:''})},notify:x=>messages.push(x),loadSummary:async()=>{throw Error('Refresh failed')}});
+ vm.runInContext(body,context);await context.completeContactFollowup(button);
+ assert.equal(field.value,'');assert.equal(button.hidden,true);assert.equal(button.disabled,true);
+ assert.deepEqual(JSON.parse(form.dataset.savedFields),{phone:'original',next_follow_up_at:''});assert.match(messages.at(-1),/Follow-up completed/);
+});
+test('contact actions keep dirty edits until the user chooses to leave',async()=>{
+ const body=source.slice(source.indexOf('async function leaveContactFor'),source.indexOf('function confirmContactDeletion'));
+ for(const leave of [false,true]){
+  let actions=0;const form={dataset:{savedFields:'{"phone":"old"}'}},dialog={showModal(){},close(){}},keep={focus(){}},discard={};
+  const elements={'#modalForm':form,'#unsavedConfirm':dialog,'#keepEditingContact':keep,'#leaveContact':discard};
+  const context=vm.createContext({$:key=>elements[key],FormData:class{entries(){return [['phone','edited']][Symbol.iterator]()}}});
+  vm.runInContext(body,context);const pending=context.leaveContactFor(()=>actions++);
+  assert.equal(actions,0);(leave?discard:keep).onclick();await pending;assert.equal(actions,leave?1:0);
+ }
+});
 const detection=source.slice(source.indexOf('async function detectRuntime'),source.indexOf('const state ='));
 async function detect(status,body={}){let calls=0;const context=vm.createContext({runtime:null,fetch:async(path,options)=>{calls++;assert.equal(path,'/api/runtime');assert.equal(options.credentials,'same-origin');return {status,ok:status===200,json:async()=>body}}});vm.runInContext(detection,context);return {context,calls:()=>calls,result:context.detectRuntime()}}
 test('local Python only falls back on missing runtime endpoint',async()=>{const run=await detect(404);assert.equal((await run.result).hosted,false);assert.equal(run.calls(),1)});

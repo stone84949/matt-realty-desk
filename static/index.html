@@ -23,13 +23,19 @@
     <div id="notice" role="status" aria-live="polite"></div>
 
     <section class="view active" id="todayView">
-      <div class="mission-strip"><div><span class="mission-kicker">RELATIONSHIP SIGNAL</span><strong>Your day, organized around people.</strong></div><div class="signal-orbit" aria-hidden="true"><i></i><i></i><i></i><span>M</span></div></div>
+      <div class="mission-strip"><div><span class="mission-kicker">YOUR RELATIONSHIP DESK</span><strong>Who should I contact today?</strong><p id="deskTimezone" class="muted"></p></div></div>
       <div class="stats">
-        <article data-signal="teal"><span>People</span><strong id="statContacts">0</strong><small>In your network</small></article><article data-signal="violet"><span>Active clients</span><strong id="statActive">0</strong><small>Moving now</small></article><article data-signal="gold"><span>Due today</span><strong id="statDue">0</strong><small>Today’s focus</small></article><article data-signal="rose"><span>Follow-ups due</span><strong id="statFollowups">0</strong><small>Need attention</small></article>
+        <article data-signal="teal"><span>People</span><strong id="statContacts">—</strong><small>Current contacts</small></article><article data-signal="violet"><span>Active clients</span><strong id="statActive">—</strong><small>Active or under contract</small></article><article data-signal="gold"><span>Due today</span><strong id="statDue">—</strong><small>Follow-ups and reminders</small></article><article data-signal="rose"><span>Overdue</span><strong id="statFollowups">—</strong><small>Follow-ups and reminders</small></article>
       </div>
-      <div class="grid two"><section class="panel"><div class="panel-head"><div><p class="eyebrow">Start here</p><h2>Today’s follow-ups</h2></div><button class="link" data-go="followups">See all</button></div><div id="todayTasks" class="list empty">Nothing due yet.</div></section>
-      <section class="panel warm"><p class="eyebrow">Quick actions</p><h2>Keep the day moving</h2><div class="quick"><button id="quickContact"><span>＋</span>Add a new lead</button><button id="quickTask"><span>✓</span>Set a reminder</button><button data-go="assistant"><span>✦</span>Draft a message</button><button data-go="campaigns"><span>↗</span>Plan a mailer</button></div></section></div>
-      <section class="panel guide"><div><p class="eyebrow">Simple weekly rhythm</p><h2>Three habits are enough</h2></div><ol><li><strong>Every morning:</strong> clear Today’s follow-ups.</li><li><strong>After each call:</strong> add a short note and next date.</li><li><strong>Once a week:</strong> draft one useful client update.</li></ol></section>
+      <div class="section-actions"><p>Open a person, add a note, or complete a reminder.</p><button class="primary" id="quickTask">+ Add a reminder</button></div>
+      <div class="grid two">
+        <section class="panel"><h2>Due today</h2><div id="todayTasks" class="list" aria-live="polite">Loading reminders…</div></section>
+        <section class="panel"><h2>Overdue</h2><div id="overdueTasks" class="list">Loading reminders…</div></section>
+        <section class="panel"><h2>Next seven days</h2><div id="upcomingTasks" class="list">Loading reminders…</div></section>
+        <section class="panel"><h2>Recent contacts</h2><p class="muted">Most recently updated saved contacts.</p><div id="recentContacts" class="list">Loading contacts…</div><button class="ghost" id="quickContact">+ Add a contact</button></section>
+        <section class="panel"><h2>Drafts to review</h2><div id="todayCampaigns" class="list">Loading drafts…</div></section>
+        <section class="panel" id="unscheduledPanel" hidden><h2>No date chosen</h2><div id="unscheduledTasks" class="list"></div></section>
+      </div>
     </section>
 
     <section class="view" id="contactsView"><div class="toolbar"><input id="contactSearch" type="search" placeholder="Search by name, phone, email, or address"><select id="contactStatus" aria-label="Contact list"><option value="0">Current contacts</option><option value="1">Deleted contacts</option></select><select id="stageFilter" aria-label="Filter by stage"><option value="">All stages</option><option>New</option><option>Nurturing</option><option>Active</option><option>Under Contract</option><option>Closed</option><option>Inactive</option></select><button class="ghost" id="importContacts">Import contacts</button><a class="button ghost" href="/api/export/contacts.csv">Export CSV</a></div><div class="panel table-wrap"><table><thead><tr><th>Name</th><th>Stage</th><th>Type</th><th>Address</th><th>Next follow-up</th><th>Phone / email</th><th>Actions</th></tr></thead><tbody id="contactRows"></tbody></table><div id="contactsEmpty" class="empty">No contacts yet. Add the first real person when Matt is ready.</div></div></section>
@@ -50,8 +56,12 @@
     </div></section>
   </main>
 
+  <dialog id="unsavedConfirm" aria-labelledby="unsavedConfirmTitle"><h2 id="unsavedConfirmTitle">Leave without saving contact edits?</h2><p>Your contact edits or new note have not been saved.</p><div class="modal-actions"><button type="button" class="primary" id="keepEditingContact">Keep editing</button><button type="button" class="ghost" id="leaveContact">Leave without saving</button></div></dialog>
   <dialog id="deleteConfirm" aria-labelledby="deleteConfirmTitle"><h2 id="deleteConfirmTitle">Delete contact?</h2><p id="deleteConfirmText"></p><div class="modal-actions"><button type="button" class="ghost" id="keepContact">Keep contact</button><button type="button" class="primary" id="confirmDeleteContact">Delete contact</button></div></dialog>
   <dialog id="modal"><form id="modalForm" method="dialog"><div class="modal-head"><h2 id="modalTitle">Add</h2><button type="button" class="icon" id="closeModal" aria-label="Close">×</button></div><div id="modalFields"></div><div class="modal-actions"><button type="button" class="ghost" id="deleteContact" hidden>Delete contact</button><button type="button" class="ghost" id="cancelModal">Cancel</button><button class="primary" id="saveModal" value="default">Save</button></div></form></dialog>
+  <script src="/today.js"></script>
   <script src="/app.js"></script>
+  <script src="/desk-templates.js"></script>
+  <script src="/desk-personalization.js"></script>
   <script src="/hosted-assistant.js"></script>
 </body></html>

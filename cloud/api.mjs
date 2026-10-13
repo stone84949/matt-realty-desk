@@ -157,7 +157,7 @@ export async function handleApi(request, env) {
             if (path === '/api/summary') {
                 const today = new Intl.DateTimeFormat('en-CA', { timeZone: env.TIME_ZONE || 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
                 const results = await DB.batch([statement(DB, 'SELECT COUNT(*) AS n FROM contacts WHERE archived=0'), statement(DB, "SELECT COUNT(*) AS n FROM contacts WHERE archived=0 AND stage IN ('Active','Under Contract')"), statement(DB, 'SELECT COUNT(*) AS n FROM tasks WHERE completed_at IS NULL AND (due_at IS NULL OR date(due_at)<=date(?))', [today]), statement(DB, 'SELECT COUNT(*) AS n FROM contacts WHERE archived=0 AND next_follow_up_at IS NOT NULL AND date(next_follow_up_at)<=date(?)', [today])]);
-                return json(Object.fromEntries(['contacts', 'active', 'due', 'overdueFollowUps'].map((k, i) => [k, results[i].results[0].n])));
+                return json({ ...Object.fromEntries(['contacts', 'active', 'due', 'overdueFollowUps'].map((k, i) => [k, results[i].results[0].n])), timeZone: env.TIME_ZONE || 'America/New_York' });
             }
             const activity = /^\/api\/contacts\/([^/]+)\/activity$/.exec(path);
             if (activity) {
