@@ -30,4 +30,3 @@ export async function requestFingerprint(data){
  return [...new Uint8Array(await crypto.subtle.digest('SHA-256',encoded))].map(x=>x.toString(16).padStart(2,'0')).join('');
 }
 if(typeof window!=='undefined')Object.assign(window,{CampaignAudience:{parseGroupAudience,individualAudience,audienceLabel}});
-

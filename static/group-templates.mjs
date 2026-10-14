@@ -64,7 +64,7 @@ export async function openGroupTemplateLibrary(initial='holiday'){
  templateSelect.onchange=()=>{fieldCache={...fieldCache,...sharedValues()};fields(fieldCache);$('#groupConfirmed').checked=false;render()};
  if(pending){templateSelect.value=pending.request.template_id;selected=new Set(pending.request.recipients.map(r=>r.id));fields(pending.request.values);$('#groupConfirmed').checked=true;$('#groupSaveStatus').textContent='A previous save needs confirmation. The original reviewed message is shown; retrying cannot create the same group twice.'}else fields();
  if(brokenReceipt)$('#groupSaveStatus').textContent='A previous save reference could not be read. Review Campaigns before starting another group; this tab has kept the original information.';
- baseline=snapshot();dialog.showModal();render();try{await load()}catch{$('#groupContactList').textContent='Could not load the audience. Reload or sign in again. Your pending save information is kept.'}return true
+ baseline=snapshot();dialog.showModal();render();try{await load()}catch{$('#groupContactList').textContent='Could not load the audience. Reload or sign in again. Your pending save information is kept.'}return dialog.open
 }
 window.openGroupTemplateLibrary=openGroupTemplateLibrary;
 await runtimeReady;
