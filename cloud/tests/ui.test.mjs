@@ -3,6 +3,27 @@ import assert from 'node:assert/strict';
 import {readFile,readdir} from 'node:fs/promises';
 import vm from 'node:vm';
 const source=await readFile(new URL('../../static/app.js',import.meta.url),'utf8');
+test('copy naming retains its marker even at the maximum name length',()=>{
+ const fragment=source.slice(source.indexOf('function copyDraftName'),source.indexOf('const fields ='));
+ const context=vm.createContext({});vm.runInContext(fragment,context);
+ assert.equal(context.copyDraftName('Short'),'Short (copy)');const name=context.copyDraftName('A'.repeat(200));assert.equal(name.length,200);assert.ok(name.endsWith(' (copy)'));
+});
+test('AI review uses the generated wording and retains known subject, recipient and revision',()=>{
+ const fragment=source.slice(source.indexOf('function buildAiDraft'),source.indexOf('const fields ='));
+ const context=vm.createContext({});vm.runInContext(fragment,context);
+ const draft=context.buildAiDraft('Polished synthetic wording',{id:7,name:'Known draft',subject:'Known subject',audience:'Contact #7',channel:'Email',updated_at:'original'});
+ assert.equal(draft.id,7);assert.equal(draft.body,'Polished synthetic wording');assert.equal(draft.audience,'Contact #7');assert.equal(draft.subject,'Known subject');assert.equal(draft.updated_at,'original');
+});
+test('saving an existing draft patches that record and keeps input on failure',async()=>{
+ const fragment=source.slice(source.indexOf('async function saveModal'),source.indexOf('function parseCSV'));
+ for(const failure of [false,true]){
+  const button={disabled:false},dialog={open:true,close(){this.open=false}},calls=[];
+  const form={dataset:{kind:'campaign',id:'7',updatedAt:'original'}};
+  const context=vm.createContext({$:s=>s==='#modal'?dialog:button,$$:()=>[],FormData:class{entries(){return [['name','Revised'],['body','Edited']][Symbol.iterator]()}},api:async(path,options)=>{calls.push({path,...options});if(failure)throw Error('Save failed')},notify(){},loadSummary:async()=>{},loadContacts:async()=>{},loadCampaigns:async()=>{}});
+  vm.runInContext(fragment,context);await context.saveModal({preventDefault(){},target:form});
+  assert.equal(calls[0].path,'/api/campaigns/7');assert.equal(calls[0].method,'PATCH');assert.equal(JSON.parse(calls[0].body).expected_updated_at,'original');assert.equal(dialog.open,failure);assert.equal(button.disabled,false);
+ }
+});
 test('hosted startup supports a Today screen without the old generic draft shortcut',()=>{
  const body=source.slice(source.indexOf('function applyRuntime'),source.indexOf('async function start'));
  const context=vm.createContext({runtime:{hosted:true,assistant:true},$:selector=>selector==='[data-go="assistant"]'?null:{},$$:()=>[],go(){}});

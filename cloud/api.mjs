@@ -136,7 +136,7 @@ export async function handleApi(request, env) {
             if (path === '/api/health')
                 return json({ ok: true });
             if (path === '/api/contacts') {
-                const q = text(url.searchParams.get('q'), 'q', 250), stage = text(url.searchParams.get('stage'), 'stage', 50);
+                const q = text(url.searchParams.get('q'), 'q', 250), stage = text(url.searchParams.get('stage'), 'stage', 50), type = text(url.searchParams.get('type'), 'type', 50);
                 const archived = url.searchParams.get('archived') || '0';
                 if (!['0', '1'].includes(archived)) fail('archived must be 0 or 1');
                 let sql = 'SELECT * FROM contacts WHERE archived=' + archived, args = [];
@@ -147,6 +147,10 @@ export async function handleApi(request, env) {
                 if (stage) {
                     sql += ' AND stage=?';
                     args.push(stage);
+                }
+                if (type) {
+                    sql += ' AND type=?';
+                    args.push(type);
                 }
                 return json(await all(DB, sql + ' ORDER BY updated_at DESC', args));
             }
@@ -209,6 +213,23 @@ export async function handleApi(request, env) {
             }
         }
         if (method === 'PATCH') {
+            const campaign = /^\/api\/campaigns\/([^/]+)$/.exec(path);
+            if (campaign) {
+                const n=id(campaign[1]),data=await body(request);
+                const limits={name:200,channel:30,audience:200,subject:300,body:20000};
+                fields(data,{...limits,expected_updated_at:40});
+                const current=await existing(DB,'campaigns',n);
+                if(current.status!=='Draft')fail('Only drafts can be edited. Create a copy instead.',409);
+                const values={};
+                for(const key of Object.keys(limits))if(data[key]!==undefined)values[key]=text(data[key],key,limits[key],key==='name');
+                if(!Object.keys(values).length)fail('No supported draft fields');
+                const expected=text(data.expected_updated_at,'expected_updated_at',40,true);
+                values.updated_at=stamp();
+                if(values.updated_at===current.updated_at)values.updated_at=new Date(Date.parse(values.updated_at)+1).toISOString();
+                const result=await statement(DB,`UPDATE campaigns SET ${Object.keys(values).map(k=>`${k}=?`).join(',')} WHERE id=? AND status='Draft' AND updated_at=?`,[...Object.values(values),n,expected]).run();
+                if(!result.meta.changes)fail('This draft changed elsewhere. Reopen it before saving.',409);
+                return json(await existing(DB,'campaigns',n));
+            }
             const match = /^\/api\/(contacts|tasks)\/([^/]+)$/.exec(path);
             if (match) {
                 const table = match[1], n = id(match[2]), data = await body(request);
