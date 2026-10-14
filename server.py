@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import csv
 import io
+import hashlib
 import json
 import os
 import re
@@ -39,6 +40,98 @@ DISCUSSION_MODEL = os.environ.get("MATT_REALTY_DISCUSSION_MODEL", "qwen3:1.7b")
 PENDING_ACTIONS: dict[str, dict] = {}
 PENDING_LOCK = threading.Lock()
 ANSI_ESCAPE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
+
+
+class GroupDraftError(ValueError):
+    def __init__(self,message,status=400):
+        super().__init__(message); self.status=status
+
+GROUP_COLUMNS="id,first_name,last_name,email,email_permission,archived,type,stage,updated_at"
+GROUP_PATTERN=re.compile(r"^Group:([a-f0-9-]{36});([a-f0-9]{64});n=(\d+);contact=(\d+);Subscribed$",re.I)
+def group_metadata(value):
+    if not isinstance(value,str): return None
+    match=GROUP_PATTERN.fullmatch(value or "")
+    return {"batch":match[1],"fingerprint":match[2],"count":int(match[3]),"contact_id":int(match[4])} if match else None
+
+def compact_json(value):
+    return json.dumps(value,ensure_ascii=False,separators=(",",":"))
+
+def campaign_audience(conn):
+    contacts=[dict(row) for row in conn.execute(f"SELECT {GROUP_COLUMNS} FROM contacts ORDER BY id")]
+    suppressed={c["email"].strip().lower() for c in contacts if c["email_permission"].strip().lower()=="unsubscribed" and c["email"].strip()}
+    for c in contacts:
+        email=c["email"].strip().lower()
+        reason=("Archived contact" if c["archived"] else "No email address" if not email else
+            "Invalid email address" if not re.fullmatch(r"\S+@[^\s@]+\.[^\s@]+",email) else
+            "Email address is unsubscribed" if email in suppressed else
+            "Marketing permission not confirmed" if c["email_permission"].strip().lower()!="subscribed" else
+            "Missing first name" if not c["first_name"].strip() else "")
+        c.update(email_key=email,eligible=not reason,reason=reason,revision=compact_json([c[k] for k in GROUP_COLUMNS.split(",")]))
+    return contacts
+
+def group_key(value):
+    if not isinstance(value,str) or not re.fullmatch(r"[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}",value,re.I):
+        raise GroupDraftError("Invalid group save reference.")
+    return value.lower()
+
+def group_receipt(conn,key):
+    key=group_key(key)
+    saved=conn.execute("SELECT id,audience FROM campaigns WHERE instr(audience,?)=1 ORDER BY id",("Group:"+key+";",)).fetchall()
+    if not saved:return None
+    meta=[group_metadata(row["audience"]) for row in saved]
+    if any(m is None for m in meta) or any(m["fingerprint"]!=meta[0]["fingerprint"] or m["count"]!=meta[0]["count"] for m in meta) or len(saved)!=meta[0]["count"]:
+        raise GroupDraftError("This saved group is incomplete. Review Campaigns before retrying.",409)
+    return {"batch_key":key,"fingerprint":meta[0]["fingerprint"],"saved":len(saved),"ids":[row["id"] for row in saved]}
+
+def create_group_drafts(conn,data):
+    if not isinstance(data,dict) or any(k not in {"batch_key","template_id","values","recipients","confirmed"} for k in data):
+        raise GroupDraftError("Unsupported group draft fields.")
+    if data.get("confirmed") is not True:raise GroupDraftError("Review the occasion and recipients before saving.")
+    key=group_key(data.get("batch_key"))
+    templates=json.loads((STATIC_DIR/"message-templates.json").read_text(encoding="utf-8"))["items"]
+    template=next((t for t in templates if t["id"]==data.get("template_id")),None)
+    fields=sorted(set(re.findall(r"\{\{(\w+)\}\}",template["subject"]+template["body"]))) if template else []
+    if not template or any(k not in {"first_name","agent_name","signature","holiday","topic"} for k in fields):
+        raise GroupDraftError("Use this property or appointment template individually.")
+    allowed=[k for k in fields if k!="first_name"]; values=data.get("values")
+    if not isinstance(values,dict) or any(k not in allowed for k in values):raise GroupDraftError("Unsupported shared template fields.")
+    normalized={}
+    for k in allowed:
+        value=values.get(k)
+        if not isinstance(value,str) or not value.strip() or "\0" in value or len(value.encode("utf-16-le"))//2>(500 if k in {"signature","topic"} else 180):
+            raise GroupDraftError("Fill the shared template blanks with short text.")
+        normalized[k]=value.strip()
+    targets=data.get("recipients")
+    if not isinstance(targets,list) or not 1<=len(targets)<=500:raise GroupDraftError("Choose between 1 and 500 contact records.")
+    ids=set(); recipients=[]
+    for target in targets:
+        if not isinstance(target,dict) or any(k not in {"id","revision"} for k in target) or type(target.get("id")) is not int or not 0<target["id"]<=9007199254740991 or target["id"] in ids or not isinstance(target.get("revision"),str) or not target["revision"] or len(target["revision"].encode("utf-16-le"))//2>1200:
+            raise GroupDraftError("Invalid recipient selection.")
+        ids.add(target["id"]);recipients.append({"id":target["id"],"revision":target["revision"]})
+    recipients.sort(key=lambda c:c["id"])
+    fingerprint=hashlib.sha256(compact_json({"template_id":template["id"],"values":normalized,"recipients":recipients}).encode()).hexdigest()
+    conn.execute("BEGIN IMMEDIATE")
+    previous=group_receipt(conn,key)
+    if previous:
+        if previous["fingerprint"]!=fingerprint:raise GroupDraftError("This save reference already belongs to another message.",409)
+        return {**previous,"created":0,"already_saved":True}
+    rows=campaign_audience(conn);by_id={c["id"]:c for c in rows}
+    for target in recipients:
+        if target["id"] not in by_id or by_id[target["id"]]["revision"]!=target["revision"]:raise GroupDraftError("Contacts changed. Refresh and review the audience again.",409)
+    selected=[by_id[target["id"]] for target in recipients]
+    if any(not c["eligible"] for c in selected):raise GroupDraftError("Some selected contacts are not eligible for an email campaign.")
+    seen=set(); unique=[]
+    for c in selected:
+        if c["email_key"] not in seen:unique.append(c);seen.add(c["email_key"])
+    if len(unique)>100:raise GroupDraftError("Choose no more than 100 different email addresses per group.")
+    time=datetime.now(timezone.utc).isoformat(timespec="microseconds")
+    for c in unique:
+        content={**normalized,"first_name":c["first_name"]}
+        fill=lambda text:re.sub(r"\{\{(\w+)\}\}",lambda m:content[m[1]],text)
+        name=(template["name"]+" — "+(c["first_name"]+" "+c["last_name"]).strip())[:200]
+        audience=f"Group:{key};{fingerprint};n={len(unique)};contact={c['id']};Subscribed"
+        conn.execute("INSERT INTO campaigns(name,channel,audience,subject,body,status,created_at,updated_at) VALUES(?,'Email',?,?,?,'Draft',?,?)",(name,audience,fill(template["subject"]),fill(template["body"]),time,time))
+    return {**group_receipt(conn,key),"created":len(unique),"already_saved":False,"duplicates":len(selected)-len(unique)}
 
 
 def now() -> str:
@@ -475,6 +568,13 @@ class Handler(SimpleHTTPRequestHandler):
                 return self.send_json(rows("""SELECT t.*, trim(c.first_name||' '||c.last_name) AS contact_name
                     FROM tasks t LEFT JOIN contacts c ON c.id=t.contact_id
                     WHERE t.completed_at IS NULL ORDER BY due_at IS NULL, due_at, t.id DESC"""))
+            if path == "/api/campaigns/audience":
+                with db() as conn:return self.send_json(campaign_audience(conn))
+            if path.startswith("/api/campaigns/batches/"):
+                try:
+                    with db() as conn:saved=group_receipt(conn,path.rsplit("/",1)[1])
+                    return self.send_json(saved if saved else {"error":"No saved group found."},200 if saved else 404)
+                except GroupDraftError as exc:return self.send_json({"error":str(exc)},exc.status)
             if path == "/api/campaigns":
                 return self.send_json(rows("SELECT * FROM campaigns ORDER BY updated_at DESC"))
             if path.startswith("/api/contacts/") and path.endswith("/activity"):
@@ -523,7 +623,14 @@ class Handler(SimpleHTTPRequestHandler):
                     cur = conn.execute("INSERT INTO tasks(contact_id,title,due_at,priority,created_at) VALUES(?,?,?,?,?)", (data.get("contact_id") or None, title, clean(data.get("due_at"),40) or None, clean(data.get("priority"),30) or "Normal", now()))
                     task_id = cur.lastrowid
                 return self.send_json(row("SELECT * FROM tasks WHERE id=?", (task_id,)), 201)
+            if path == "/api/campaigns/group-drafts":
+                try:
+                    with db() as conn:saved=create_group_drafts(conn,data)
+                    return self.send_json(saved,201 if saved["created"] else 200)
+                except GroupDraftError as exc:return self.send_json({"error":str(exc)},exc.status)
+                except sqlite3.Error:return self.send_json({"error":"Group draft save failed."},500)
             if path == "/api/campaigns":
+                if group_metadata(data.get("audience")):raise ValueError("Create groups with the recipient chooser, or copy as an individual draft.")
                 stamp = now()
                 with db() as conn:
                     cur = conn.execute("INSERT INTO campaigns(name,channel,audience,subject,body,status,created_at,updated_at) VALUES(?,?,?,?,?,'Draft',?,?)", (require(data.get("name"), "Campaign name"), clean(data.get("channel"),30) or "Email", clean(data.get("audience"),200) or "All opted-in contacts", clean(data.get("subject"),300), clean(data.get("body"),20000), stamp, stamp))
@@ -616,6 +723,9 @@ class Handler(SimpleHTTPRequestHandler):
                 with db() as conn:
                     current = conn.execute("SELECT * FROM campaigns WHERE id=?",(cid,)).fetchone()
                     if current is None: return self.send_json({"error":"Draft not found"},404)
+                    if not group_metadata(current["audience"]) and group_metadata(data.get("audience")):raise ValueError("Create groups with the recipient chooser.")
+                    if group_metadata(current["audience"]) and "channel" in data and data["channel"]!=current["channel"]:raise ValueError("Group email channels cannot be changed here. Create a copy instead.")
+                    if group_metadata(current["audience"]) and "audience" in data and data["audience"]!=current["audience"]:raise ValueError("Group recipients cannot be changed here. Create a new copy instead.")
                     if current["status"]!="Draft": return self.send_json({"error":"Only drafts can be edited. Create a copy instead."},409)
                     updates["updated_at"] = datetime.now().astimezone().isoformat(timespec="microseconds")
                     fields = ",".join(f"{key}=?" for key in updates)
