@@ -456,6 +456,7 @@ class Handler(SimpleHTTPRequestHandler):
             if path == "/api/contacts":
                 q = parse_qs(parsed.query).get("q", [""])[0].strip()
                 stage = parse_qs(parsed.query).get("stage", [""])[0].strip()
+                contact_type = parse_qs(parsed.query).get("type", [""])[0].strip()
                 archived = parse_qs(parsed.query).get("archived", ["0"])[0]
                 if archived not in ("0", "1"):
                     return self.send_json({"error": "archived must be 0 or 1"}, 400)
@@ -466,6 +467,8 @@ class Handler(SimpleHTTPRequestHandler):
                     params += [f"%{q}%"] * 8
                 if stage:
                     sql += " AND stage=?"; params.append(stage)
+                if contact_type:
+                    sql += " AND type=?"; params.append(contact_type)
                 sql += " ORDER BY updated_at DESC"
                 return self.send_json(rows(sql, tuple(params)))
             if path == "/api/tasks":
@@ -592,6 +595,36 @@ class Handler(SimpleHTTPRequestHandler):
         path = urlparse(self.path).path
         try:
             data = self.body()
+            if path.startswith("/api/campaigns/"):
+                cid = int(path.rsplit("/",1)[1])
+                if not isinstance(data,dict): raise ValueError("JSON object required")
+                limits = {"name":200,"channel":30,"audience":200,"subject":300,"body":20000}
+                if any(key not in {*limits,"expected_updated_at"} for key in data):
+                    raise ValueError("Unsupported draft field")
+                updates = {}
+                for key,limit in limits.items():
+                    if key in data:
+                        value = data[key]
+                        if not isinstance(value,str) or len(value)>limit or "\x00" in value:
+                            raise ValueError("Invalid or oversized draft field")
+                        if key=="name" and not value.strip(): raise ValueError("Campaign name is required")
+                        updates[key] = value
+                if not updates: raise ValueError("No supported draft fields")
+                expected = data.get("expected_updated_at")
+                if not isinstance(expected,str) or not expected or len(expected)>40:
+                    raise ValueError("Invalid draft revision")
+                with db() as conn:
+                    current = conn.execute("SELECT * FROM campaigns WHERE id=?",(cid,)).fetchone()
+                    if current is None: return self.send_json({"error":"Draft not found"},404)
+                    if current["status"]!="Draft": return self.send_json({"error":"Only drafts can be edited. Create a copy instead."},409)
+                    updates["updated_at"] = datetime.now().astimezone().isoformat(timespec="microseconds")
+                    fields = ",".join(f"{key}=?" for key in updates)
+                    sql = f"UPDATE campaigns SET {fields} WHERE id=? AND status='Draft'"
+                    params = [*updates.values(),cid]
+                    sql += " AND updated_at=?"; params.append(expected)
+                    result = conn.execute(sql,params)
+                    if not result.rowcount: return self.send_json({"error":"This draft changed elsewhere. Reopen it before saving."},409)
+                return self.send_json(row("SELECT * FROM campaigns WHERE id=?",(cid,)))
             if path.startswith("/api/tasks/"):
                 task_id = int(path.rsplit("/",1)[1]); completed = now() if data.get("completed") else None
                 with db() as conn: conn.execute("UPDATE tasks SET completed_at=? WHERE id=?", (completed, task_id))
