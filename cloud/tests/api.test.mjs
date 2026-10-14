@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { TestD1 } from './d1-test-adapter.mjs';
 const api = await import('../api.mjs');
-function setup(t) { const DB = new TestD1(); const schema = readFileSync(new URL('../migrations/0001-crm.sql', import.meta.url), 'utf8'); DB.exec(schema); t.after(() => DB.close()); return { DB }; }
+function setup(t) { const DB = new TestD1(); const schema = readFileSync(new URL('../migrations/0001-crm.sql', import.meta.url), 'utf8'); DB.exec(schema); DB.exec(readFileSync(new URL('../migrations/0003-occasions-and-settings.sql', import.meta.url), 'utf8')); t.after(() => DB.close()); return { DB }; }
 async function call(env, path, method = 'GET', body) { return api.handleApi(new Request('https://demo.example' + path, { method, ...(body === undefined ? {} : { body: JSON.stringify(body), headers: { 'Content-Type': 'application/json' } }) }), env); }
 test('contact type combines with search, stage and archive without changing records',async t=>{
  const env=setup(t);

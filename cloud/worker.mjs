@@ -1,4 +1,5 @@
 import {handleAssistant,assistantUsage} from './assistant.mjs';
+import {validCalendarToken,handleCalendarFeed} from './calendar.mjs';
 import { verifyAccess, validWriteRequest } from './auth.mjs';
 import { handleApi } from './api.mjs';
 function secure(response) {
@@ -12,6 +13,9 @@ function secure(response) {
 }
 export default {
     async fetch(request, env) {
+        const path = new URL(request.url).pathname;
+        if (path === '/api/calendar.ics' && request.method === 'GET' && await validCalendarToken(request, env.DB))
+            return secure(await handleCalendarFeed(request, env));
         if (!await verifyAccess(request, env))
             return secure(Response.json({ error: 'Sign-in required.' }, { status: 401 }));
         if (!['GET', 'HEAD', 'POST', 'PATCH'].includes(request.method))
@@ -19,7 +23,6 @@ export default {
         if (['POST', 'PATCH'].includes(request.method) && !validWriteRequest(request))
             return secure(Response.json({ error: 'Use the CRM form on this site.' }, { status: 403 }));
         try {
-            const path = new URL(request.url).pathname;
             if(path==='/api/assistant'&&request.method==='POST')return secure(await handleAssistant(request,env));
             if(path==='/api/assistant/usage'&&request.method==='GET')return secure(Response.json(await assistantUsage(env)));
             if (['/api/voice/transcribe', '/api/tts', '/api/command/interpret', '/api/command/execute'].includes(path))

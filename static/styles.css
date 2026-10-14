@@ -27,3 +27,5 @@
 .group-contact span{min-width:0}.group-contact strong{overflow-wrap:anywhere}.campaign-group{grid-column:1/-1;border:1px solid var(--line);border-radius:12px;padding:18px;background:var(--paper)}.campaign-group summary{cursor:pointer}.campaign-group summary span{display:block;margin-top:6px}.campaign-group>.cards{margin-top:20px}
 
 #groupBody{white-space:pre-wrap}
+
+#feedUrl{word-break:break-all;font-size:.85em;background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:8px;display:inline-block;max-width:100%}

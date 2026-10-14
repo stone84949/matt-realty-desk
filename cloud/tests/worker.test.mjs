@@ -8,7 +8,7 @@ const fixture = await authFixture('https://worker-fixture.cloudflareaccess.com')
 const originalFetch = globalThis.fetch;
 globalThis.fetch = async () => fixture.keys();
 after(() => { globalThis.fetch = originalFetch; });
-function env() { const DB = new TestD1(); DB.exec(readFileSync(new URL('../migrations/0001-crm.sql', import.meta.url), 'utf8')); return { ...fixture.env, DB, ASSETS: { fetch: async () => new Response('Demo asset') } }; }
+function env() { const DB = new TestD1(); DB.exec(readFileSync(new URL('../migrations/0001-crm.sql', import.meta.url), 'utf8')); DB.exec(readFileSync(new URL('../migrations/0003-occasions-and-settings.sql', import.meta.url), 'utf8')); return { ...fixture.env, DB, ASSETS: { fetch: async () => new Response('Demo asset') } }; }
 const request = (path, method = 'GET', body, headers = {}) => new Request(`https://crm.example.test${path}`, { method, headers: { 'Cf-Access-Jwt-Assertion': fixture.token, Origin: 'https://crm.example.test', 'Content-Type': 'application/json', ...headers }, body: body === undefined ? undefined : JSON.stringify(body) });
 test('anonymous callers cannot access static assets, API, exports or backups', async () => {
     const e = env();

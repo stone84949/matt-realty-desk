@@ -1,8 +1,9 @@
 import {audienceRows,parseGroupAudience} from '../static/campaign-audience.mjs';
+import {calendarToken,rotateCalendarToken,handleCalendarFeed,occasionRows} from './calendar.mjs';
 import {AUDIENCE_COLUMNS,saveGroupDrafts,batchReceipt,AudienceError} from './group-drafts.mjs';
 const IMPORT = { first_name: 100, last_name: 100, email: 250, phone: 50, street_address: 250, address_line_2: 100, city: 100, state: 50, postal_code: 30, type: 50, source: 100, notes: 5000 };
-const CONTACT = { ...IMPORT, stage: 50, email_permission: 50, next_follow_up_at: 40, archived: 1 };
-const EXPORT = ['first_name', 'last_name', 'email', 'phone', 'street_address', 'address_line_2', 'city', 'state', 'postal_code', 'type', 'stage', 'source', 'email_permission', 'notes'];
+const CONTACT = { ...IMPORT, stage: 50, email_permission: 50, next_follow_up_at: 40, birthday: 10, anniversary: 10, archived: 1 };
+const EXPORT = ['first_name', 'last_name', 'email', 'phone', 'street_address', 'address_line_2', 'city', 'state', 'postal_code', 'type', 'stage', 'source', 'email_permission', 'birthday', 'anniversary', 'notes'];
 class InputError extends Error {
     constructor(message, status = 400) { super(message); this.status = status; }
 }
@@ -39,8 +40,8 @@ function contactValues(data, partial = false) { fields(data, CONTACT); const r =
         else
             fail('archived must be boolean or 0/1');
     }
-    else if (k === 'next_follow_up_at')
-        r[k] = date(data[k], k);
+    else if (k === 'next_follow_up_at' || k === 'birthday' || k === 'anniversary')
+        r[k] = k === 'next_follow_up_at' ? date(data[k], k) : (date(data[k], k) || '');
     else
         r[k] = text(data[k], k, l, k === 'first_name');
 } if (!partial) {
@@ -137,6 +138,12 @@ export async function handleApi(request, env) {
                 return json({ hosted: true, assistant: Boolean(env.AI), voice: false, backup: 'download' });
             if (path === '/api/health')
                 return json({ ok: true });
+            if (path === '/api/occasions') {
+                const days = Math.min(Math.max(Number(url.searchParams.get('days')) || 30, 1), 180);
+                return json(await occasionRows(DB, new Date().toISOString().slice(0, 10), days));
+            }
+            if (path === '/api/calendar.ics')
+                return handleCalendarFeed(request, env);
             if (path === '/api/contacts') {
                 const q = text(url.searchParams.get('q'), 'q', 250), stage = text(url.searchParams.get('stage'), 'stage', 50), type = text(url.searchParams.get('type'), 'type', 50);
                 const archived = url.searchParams.get('archived') || '0';
@@ -210,6 +217,12 @@ export async function handleApi(request, env) {
                 const summary = text(data.summary, 'summary', 5000, true), kind = text(data.kind, 'kind', 30) || 'Note', time = stamp();
                 const results = await DB.batch([statement(DB, 'INSERT INTO activities(contact_id,kind,summary,occurred_at) VALUES(?,?,?,?)', [n, kind, summary, time]), statement(DB, 'UPDATE contacts SET last_contact_at=?,updated_at=? WHERE id=?', [time, time, n])]);
                 return json({ id: results[0].meta.last_row_id }, 201);
+            }
+            if (path === '/api/calendar/token') {
+                fields(data, { rotate: 1 });
+                if (data.rotate !== undefined && typeof data.rotate !== 'boolean')
+                    fail('rotate must be boolean');
+                return json({ token: data.rotate ? await rotateCalendarToken(DB) : await calendarToken(DB) });
             }
             if (path === '/api/backup') {
                 fields(data, {});

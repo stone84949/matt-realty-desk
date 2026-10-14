@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs';
 import {TestD1} from './d1-test-adapter.mjs';
 import {handleApi} from '../api.mjs';
 const call=(env,path,method='GET',data)=>handleApi(new Request('https://crm.test'+path,{method,...(data?{body:JSON.stringify(data)}:{})}),env);
-async function setup(t){const DB=new TestD1();DB.exec(readFileSync(new URL('../migrations/0001-crm.sql',import.meta.url),'utf8'));t.after(()=>DB.close());const env={DB};for(const [name,email] of [['Alex','shared@example.test'],['Jamie','SHARED@example.test'],['Robin','other@example.test']])await call(env,'/api/contacts','POST',{first_name:name,last_name:'Synthetic',email,email_permission:'Subscribed'});return env}
+async function setup(t){const DB=new TestD1();DB.exec(readFileSync(new URL('../migrations/0001-crm.sql',import.meta.url),'utf8'));DB.exec(readFileSync(new URL('../migrations/0003-occasions-and-settings.sql',import.meta.url),'utf8'));t.after(()=>DB.close());const env={DB};for(const [name,email] of [['Alex','shared@example.test'],['Jamie','SHARED@example.test'],['Robin','other@example.test']])await call(env,'/api/contacts','POST',{first_name:name,last_name:'Synthetic',email,email_permission:'Subscribed'});return env}
 async function payload(env,key='11111111-1111-4111-8111-111111111111'){const rows=await (await call(env,'/api/campaigns/audience')).json();return {batch_key:key,template_id:'holiday',values:{holiday:'New Year',signature:'Matt'},recipients:rows.map(c=>({id:c.id,revision:c.revision})),confirmed:true}}
 test('group saves personalize unique emails and identical concurrent retries create only once',async t=>{
  const env=await setup(t),data=await payload(env);const before=await (await call(env,'/api/contacts')).json();
