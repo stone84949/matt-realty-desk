@@ -2,9 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
-const context=vm.createContext({});
-vm.runInContext(readFileSync(new URL('../../static/desk-templates.js',import.meta.url),'utf8'),context);
-const library=vm.runInContext('DeskTemplates',context);
+const {DeskTemplates:library}=await import('../../static/desk-templates.mjs');
 test('templates fill known names and leave event facts explicitly missing',()=>{
  const draft=library.fill('new-home',{first_name:'Synthetic',agent_name:'Matt',signature:'Matt'});
  assert.match(draft.body,/Synthetic/);assert.match(draft.body,/Matt/);assert.ok(draft.missing.includes('property_address'));

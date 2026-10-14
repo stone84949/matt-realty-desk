@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
-const source=readFileSync(new URL('../../static/desk-personalization.js',import.meta.url),'utf8').split('runtimeReady.then')[0];
+const source=readFileSync(new URL('../../static/desk-personalization.js',import.meta.url),'utf8').split('Promise.all([runtimeReady')[0];
 function profile(storage){const context=vm.createContext({localStorage:{getItem:key=>storage.get(key),setItem:(key,value)=>storage.set(key,value)}});vm.runInContext(source,context);return vm.runInContext('DeskProfile',context)}
 test('owner preferences survive a new browser page and retain signature text',()=>{
  const storage=new Map();profile(storage).save({display_name:'Matt',tone:'Clear and concise',signature:'Matt\nSynthetic signature'});

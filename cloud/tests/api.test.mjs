@@ -5,6 +5,29 @@ import { TestD1 } from './d1-test-adapter.mjs';
 const api = await import('../api.mjs');
 function setup(t) { const DB = new TestD1(); const schema = readFileSync(new URL('../migrations/0001-crm.sql', import.meta.url), 'utf8'); DB.exec(schema); t.after(() => DB.close()); return { DB }; }
 async function call(env, path, method = 'GET', body) { return api.handleApi(new Request('https://demo.example' + path, { method, ...(body === undefined ? {} : { body: JSON.stringify(body), headers: { 'Content-Type': 'application/json' } }) }), env); }
+test('contact type combines with search, stage and archive without changing records',async t=>{
+ const env=setup(t);
+ for(const c of [{first_name:'Alex Buyer',type:'Buyer',stage:'Active'},{first_name:'Alex Seller',type:'Seller',stage:'Active'},{first_name:'Alex New',type:'Buyer',stage:'New'},{first_name:'Alex Custom',type:'Investor',stage:'Active'}])await call(env,'/api/contacts','POST',c);
+ const rows=await (await call(env,'/api/contacts?q=Alex&type=Buyer&stage=Active')).json();assert.equal(rows.length,1);assert.equal(rows[0].first_name,'Alex Buyer');
+ assert.equal((await (await call(env,'/api/contacts?type=Investor')).json())[0].first_name,'Alex Custom');
+ assert.equal((await (await call(env,'/api/contacts')).json()).length,4);
+});
+test('editing a saved draft preserves identity and metadata; copying makes a new draft',async t=>{
+ const env=setup(t);const draft=await (await call(env,'/api/campaigns','POST',{name:'Original',body:'Before',audience:'Contact #7 | Permission at drafting: Not asked',channel:'Email'})).json();
+ const response=await call(env,`/api/campaigns/${draft.id}`,'PATCH',{name:'Revised',body:'After',expected_updated_at:draft.updated_at});assert.equal(response.status,200);
+ const updated=await response.json();assert.equal(updated.id,draft.id);assert.equal(updated.body,'After');assert.equal(updated.audience,draft.audience);assert.equal(updated.created_at,draft.created_at);assert.equal(updated.status,'Draft');
+ assert.equal((await call(env,`/api/campaigns/${draft.id}`,'PATCH',{body:'Stale overwrite',expected_updated_at:'old'})).status,409);
+ const copy=await (await call(env,'/api/campaigns','POST',{name:'Copy',body:updated.body,audience:updated.audience,channel:updated.channel,subject:updated.subject})).json();assert.notEqual(copy.id,draft.id);assert.equal((await (await call(env,'/api/campaigns')).json()).length,2);
+});
+test('draft edits reject status changes, missing records and non-draft records',async t=>{
+ const env=setup(t);const draft=await (await call(env,'/api/campaigns','POST',{name:'Protected',body:'Keep'})).json();
+ assert.equal((await call(env,`/api/campaigns/${draft.id}`,'PATCH',{status:'Sent'})).status,400);
+ assert.equal((await call(env,`/api/campaigns/${draft.id}`,'PATCH',{body:'Unguarded overwrite'})).status,400);
+ assert.equal((await call(env,'/api/campaigns/999','PATCH',{body:'Missing',expected_updated_at:draft.updated_at})).status,404);
+ env.DB.exec(`UPDATE campaigns SET status='Sent' WHERE id=${draft.id}`);
+ assert.equal((await call(env,`/api/campaigns/${draft.id}`,'PATCH',{body:'Overwrite',expected_updated_at:draft.updated_at})).status,409);
+ assert.equal((await (await call(env,'/api/campaigns')).json())[0].body,'Keep');
+});
 test('runtime exposes hosted capabilities', async () => { assert.deepEqual(await (await call({}, '/api/runtime')).json(), { hosted: true, assistant: false, voice: false, backup: 'download' }); });
 test('imports skip exact records while keeping shared households and notes', async (t) => {
     const env = setup(t);

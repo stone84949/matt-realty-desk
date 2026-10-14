@@ -1,3 +1,5 @@
+import {audienceRows,parseGroupAudience} from '../static/campaign-audience.mjs';
+import {AUDIENCE_COLUMNS,saveGroupDrafts,batchReceipt,AudienceError} from './group-drafts.mjs';
 const IMPORT = { first_name: 100, last_name: 100, email: 250, phone: 50, street_address: 250, address_line_2: 100, city: 100, state: 50, postal_code: 30, type: 50, source: 100, notes: 5000 };
 const CONTACT = { ...IMPORT, stage: 50, email_permission: 50, next_follow_up_at: 40, archived: 1 };
 const EXPORT = ['first_name', 'last_name', 'email', 'phone', 'street_address', 'address_line_2', 'city', 'state', 'postal_code', 'type', 'stage', 'source', 'email_permission', 'notes'];
@@ -136,7 +138,7 @@ export async function handleApi(request, env) {
             if (path === '/api/health')
                 return json({ ok: true });
             if (path === '/api/contacts') {
-                const q = text(url.searchParams.get('q'), 'q', 250), stage = text(url.searchParams.get('stage'), 'stage', 50);
+                const q = text(url.searchParams.get('q'), 'q', 250), stage = text(url.searchParams.get('stage'), 'stage', 50), type = text(url.searchParams.get('type'), 'type', 50);
                 const archived = url.searchParams.get('archived') || '0';
                 if (!['0', '1'].includes(archived)) fail('archived must be 0 or 1');
                 let sql = 'SELECT * FROM contacts WHERE archived=' + archived, args = [];
@@ -148,10 +150,16 @@ export async function handleApi(request, env) {
                     sql += ' AND stage=?';
                     args.push(stage);
                 }
+                if (type) {
+                    sql += ' AND type=?';
+                    args.push(type);
+                }
                 return json(await all(DB, sql + ' ORDER BY updated_at DESC', args));
             }
             if (path === '/api/tasks')
                 return json(await all(DB, "SELECT t.*,trim(c.first_name||' '||c.last_name) AS contact_name FROM tasks t LEFT JOIN contacts c ON c.id=t.contact_id WHERE t.completed_at IS NULL ORDER BY due_at IS NULL,due_at,t.id DESC"));
+            if(path==='/api/campaigns/audience')return json(audienceRows(await all(DB,`SELECT ${AUDIENCE_COLUMNS} FROM contacts ORDER BY first_name,last_name,id`)));
+            const receipt=/^\/api\/campaigns\/batches\/([^/]+)$/.exec(path);if(receipt){const saved=await batchReceipt(DB,receipt[1]);return saved?json(saved):json({error:'No saved group found.'},404)}
             if (path === '/api/campaigns')
                 return json(await all(DB, 'SELECT * FROM campaigns ORDER BY updated_at DESC'));
             if (path === '/api/summary') {
@@ -172,6 +180,7 @@ export async function handleApi(request, env) {
         }
         if (method === 'POST') {
             const data = await body(request);
+            if(path==='/api/campaigns/group-drafts'){const saved=await saveGroupDrafts(DB,data);return json(saved,saved.created?201:200)}
             if (path === '/api/contacts') {
                 const time = stamp();
                 return json(await insert(DB, 'contacts', { ...contactValues(data), created_at: time, updated_at: time }), 201);
@@ -188,6 +197,7 @@ export async function handleApi(request, env) {
                 return json(await insert(DB, 'tasks', { contact_id, title: text(data.title, 'title', 300, true), due_at: date(data.due_at, 'due_at'), priority: text(data.priority, 'priority', 30) || 'Normal', created_at: stamp() }), 201);
             }
             if (path === '/api/campaigns') {
+                if(parseGroupAudience(data.audience))fail('Create groups with the recipient chooser, or copy as an individual draft.');
                 fields(data, { name: 200, channel: 30, audience: 200, subject: 300, body: 20000 });
                 const time = stamp();
                 return json(await insert(DB, 'campaigns', { name: text(data.name, 'name', 200, true), channel: text(data.channel, 'channel', 30) || 'Email', audience: text(data.audience, 'audience', 200) || 'All opted-in contacts', subject: text(data.subject, 'subject', 300), body: text(data.body, 'body', 20000), status: 'Draft', created_at: time, updated_at: time }), 201);
@@ -209,6 +219,26 @@ export async function handleApi(request, env) {
             }
         }
         if (method === 'PATCH') {
+            const campaign = /^\/api\/campaigns\/([^/]+)$/.exec(path);
+            if (campaign) {
+                const n=id(campaign[1]),data=await body(request);
+                const limits={name:200,channel:30,audience:200,subject:300,body:20000};
+                fields(data,{...limits,expected_updated_at:40});
+                const current=await existing(DB,'campaigns',n);
+                if(!parseGroupAudience(current.audience)&&parseGroupAudience(data.audience))fail('Create groups with the recipient chooser.');
+                if(parseGroupAudience(current.audience)&&data.channel!==undefined&&data.channel!==current.channel)fail('Group email channels cannot be changed here. Create a copy instead.');
+                if(parseGroupAudience(current.audience)&&data.audience!==undefined&&data.audience!==current.audience)fail('Group recipients cannot be changed here. Create a new copy instead.');
+                if(current.status!=='Draft')fail('Only drafts can be edited. Create a copy instead.',409);
+                const values={};
+                for(const key of Object.keys(limits))if(data[key]!==undefined)values[key]=text(data[key],key,limits[key],key==='name');
+                if(!Object.keys(values).length)fail('No supported draft fields');
+                const expected=text(data.expected_updated_at,'expected_updated_at',40,true);
+                values.updated_at=stamp();
+                if(values.updated_at===current.updated_at)values.updated_at=new Date(Date.parse(values.updated_at)+1).toISOString();
+                const result=await statement(DB,`UPDATE campaigns SET ${Object.keys(values).map(k=>`${k}=?`).join(',')} WHERE id=? AND status='Draft' AND updated_at=?`,[...Object.values(values),n,expected]).run();
+                if(!result.meta.changes)fail('This draft changed elsewhere. Reopen it before saving.',409);
+                return json(await existing(DB,'campaigns',n));
+            }
             const match = /^\/api\/(contacts|tasks)\/([^/]+)$/.exec(path);
             if (match) {
                 const table = match[1], n = id(match[2]), data = await body(request);
@@ -233,7 +263,7 @@ export async function handleApi(request, env) {
         return json({ error: 'Not found' }, 404);
     }
     catch (error) {
-        if (error instanceof InputError)
+        if (error instanceof InputError || error instanceof AudienceError)
             return json({ error: error.message }, error.status);
         return json({ error: 'Database request failed' }, 500);
     }
