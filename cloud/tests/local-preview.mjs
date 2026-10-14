@@ -13,7 +13,7 @@ DB.exec(await readFile(new URL('../demo.sql', import.meta.url), 'utf8'));
 DB.exec(await readFile(new URL('../migrations/0002-assistant.sql',import.meta.url),'utf8'));
 const port=Number(process.env.PREVIEW_PORT||5052);
 const assetsRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../static');
-const mime = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.webp': 'image/webp' };
+const mime = { '.html': 'text/html', '.js': 'text/javascript', '.mjs':'text/javascript', '.json':'application/json', '.css': 'text/css', '.svg': 'image/svg+xml', '.webp': 'image/webp' };
 const env = { ...fixture.env, DB, ...(process.env.PREVIEW_ASSISTANT==='1'?{AI:{run:async()=>({response:'Synthetic preview draft. Review before using.'})}}:{}), ASSETS: { async fetch(request) {
             const path = new URL(request.url).pathname;
             const file = resolve(assetsRoot, `.${path === '/' ? '/index.html' : path}`);

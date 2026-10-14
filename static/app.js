@@ -15,7 +15,7 @@ async function api(path, options={}) {
   await runtimeReady;
   const res = await fetch(path, {credentials:'same-origin',headers:{'Content-Type':'application/json'}, ...options});
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'Something went wrong');
+  if (!res.ok) {const error=new Error(data.error || 'Something went wrong');error.status=res.status;throw error}
   return data;
 }
 function notify(message, bad=false){const n=$('#notice');n.textContent=message;n.className=bad?'error':'';n.style.display='block';setTimeout(()=>n.style.display='none',3500)}
@@ -58,7 +58,7 @@ function renderToday(){
  $('#todayTasks').innerHTML=todayHtml(groups.today,'No follow-ups due today.');$('#overdueTasks').innerHTML=todayHtml(groups.overdue,'No overdue follow-ups.');$('#upcomingTasks').innerHTML=todayHtml(groups.upcoming,'No reminders in the next seven days.');
  $('#unscheduledPanel').hidden=!groups.unscheduled.length;$('#unscheduledTasks').innerHTML=todayHtml(groups.unscheduled,'No undated reminders.');
  $('#recentContacts').innerHTML=state.todayContacts.slice(0,5).map(c=>`<div class="list-item"><div class="list-main"><strong>${esc(c.first_name)} ${esc(c.last_name)}</strong><span>Updated ${date(c.updated_at)}</span><button type="button" class="primary" data-open-contact="${c.id}">Open contact</button></div></div>`).join('')||'<p class="empty">No contacts yet. Add your first contact below.</p>';
- const drafts=state.campaigns.filter(c=>c.status==='Draft');$('#todayCampaigns').innerHTML=drafts.map(c=>`<div class="list-item"><div class="list-main"><strong>${esc(c.name)}</strong><span>Saved draft · ${date(c.updated_at)}</span><button type="button" class="primary" data-go="campaigns">Review drafts</button></div></div>`).join('')||'<p class="empty">No campaign drafts awaiting review.</p>';
+ const drafts=state.campaigns.filter(c=>c.status==='Draft');$('#todayCampaigns').innerHTML=campaignGroups(drafts).map(item=>{const c=item.rows[0];return `<div class="list-item"><div class="list-main"><strong>${item.group?'Group: '+item.rows.length+' personalized drafts':esc(c.name)}</strong><span>Saved draft · ${date(c.updated_at)}</span><button type="button" class="primary" data-go="campaigns">Review drafts</button></div></div>`}).join('')||'<p class="empty">No campaign drafts awaiting review.</p>';
  bindDeskActions();
 }
 function bindDeskActions(){
@@ -83,24 +83,30 @@ async function draftFollowup(id,reason=''){
  go('assistant');try{await startHostedFollowup(id,reason)}catch(error){notify(error.message,true)}
 }
 async function completeTask(e){if(e.target.disabled)return;e.target.disabled=true;try{await api(`/api/tasks/${e.target.dataset.completeTask}`,{method:'PATCH',body:JSON.stringify({completed:true})});notify('Reminder completed');await loadSummary();if($('#modal').open&&$('#modalForm').dataset.kind==='contact'){const c=state.todayContacts.find(c=>Number(c.id)===Number($('#modalForm').dataset.id));if(c)await showContactHistory(c)}}catch(err){e.target.disabled=false;notify(err.message,true)}}
-async function loadCampaigns(){
- state.campaigns=await api('/api/campaigns');$('#campaignList').innerHTML=state.campaigns.length?state.campaigns.map(c=>`<article><span class="pill">${esc(c.status)}</span><h2>${esc(c.name)}</h2><p class="meta">${esc(c.channel)} · ${esc(c.audience)}</p><p>${esc(c.subject||'No subject yet')}</p><p class="draft-body">${esc(c.body||'No message saved yet.')}</p><div class="item-actions">${c.status==='Draft'?`<button type="button" class="primary" data-edit-draft="${c.id}">Edit draft</button>`:''}<button type="button" class="ghost" data-copy-draft="${c.id}">Create a copy</button></div></article>`).join(''):'<div class="panel empty">No campaign drafts yet. Start with one useful monthly update.</div>';
- $$('[data-edit-draft]').forEach(b=>b.onclick=()=>openCampaignEditor(state.campaigns.find(c=>Number(c.id)===Number(b.dataset.editDraft)), 'Edit draft'));
- $$('[data-copy-draft]').forEach(b=>b.onclick=()=>{const draft=state.campaigns.find(c=>Number(c.id)===Number(b.dataset.copyDraft));openCampaignEditor({...draft,id:'',name:copyDraftName(draft.name)},'Create a copy')});
+function campaignGroups(rows){
+ const groups=new Map(),items=[];for(const row of rows){const group=globalThis.CampaignAudience?.parseGroupAudience(row.audience);if(!group)items.push({rows:[row],group:false});else if(groups.has(group.batch))groups.get(group.batch).rows.push(row);else{const item={rows:[row],group:true};groups.set(group.batch,item);items.push(item)}}return items;
 }
+function campaignCard(c){return `<article><span class="pill">${esc(c.status)}</span><h2>${esc(c.name)}</h2><p class="meta">${esc(c.channel)} · ${esc(displayAudience(c.audience))}</p><p>${esc(c.subject||'No subject yet')}</p><p class="draft-body">${esc(c.body||'No message saved yet.')}</p><div class="item-actions">${c.status==='Draft'?`<button type="button" class="primary" data-edit-draft="${c.id}">Edit draft</button>`:''}<button type="button" class="ghost" data-copy-draft="${c.id}">Create a copy</button></div></article>`}
+async function loadCampaigns(){
+ state.campaigns=await api('/api/campaigns');$('#campaignList').innerHTML=state.campaigns.length?campaignGroups(state.campaigns).map(item=>item.group?`<details class="campaign-group"><summary><strong>Group drafts · ${item.rows.length} personalized messages</strong><span class="muted">Created ${date(item.rows[0].created_at)} · expand to review or edit each draft</span></summary><div class="cards">${item.rows.map(campaignCard).join('')}</div></details>`:campaignCard(item.rows[0])).join(''):'<div class="panel empty">No campaign drafts yet. Start with one useful monthly update.</div>';
+ $$('[data-edit-draft]').forEach(b=>b.onclick=()=>openCampaignEditor(state.campaigns.find(c=>Number(c.id)===Number(b.dataset.editDraft)), 'Edit draft'));
+ $$('[data-copy-draft]').forEach(b=>b.onclick=()=>{const draft=state.campaigns.find(c=>Number(c.id)===Number(b.dataset.copyDraft));openCampaignEditor({...draft,id:'',audience:detachGroupAudience(draft.audience),name:copyDraftName(draft.name)},'Create a copy')});
+}
+function displayAudience(value){return globalThis.CampaignAudience?.audienceLabel(value)||value}
+function detachGroupAudience(value){return globalThis.CampaignAudience?.individualAudience(value)||value}
 function copyDraftName(name){return String(name||'Draft').slice(0,193)+' (copy)'}
 function buildAiDraft(answer,seed={}){
  return {id:seed.id||'',name:seed.name||'Assistant message draft',subject:seed.subject||'',body:answer,channel:seed.channel||'Email',audience:seed.audience||'Individual draft — review recipient and permission',updated_at:seed.updated_at||''};
 }
 function openCampaignEditor(values,title='Review and save draft'){
- openModal('campaign',title,values);$('#modalForm').dataset.aiReview=values.fromAssistant?'1':'';
+ openModal('campaign',title,values);if(globalThis.CampaignAudience?.parseGroupAudience(values.audience)&&values.id){const audience=$('#modalForm [name="audience"]');audience.disabled=true;$('#modalForm [name="channel"]').disabled=true;audience.selectedOptions[0].textContent=displayAudience(values.audience)}$('#modalForm').dataset.aiReview=values.fromAssistant?'1':'';
  const actions=document.createElement('div');actions.className='item-actions';
- if(values.id){const copy=document.createElement('button');copy.type='button';copy.className='ghost';copy.textContent='Make a new copy';copy.onclick=()=>{const current=Object.fromEntries(new FormData($('#modalForm')).entries());openCampaignEditor({...current,id:'',name:copyDraftName(current.name)},'Review new copy')};actions.append(copy)}
+ if(values.id){const copy=document.createElement('button');copy.type='button';copy.className='ghost';copy.textContent='Make a new copy';copy.onclick=()=>{const current=Object.fromEntries(new FormData($('#modalForm')).entries());openCampaignEditor({...values,...current,id:'',audience:detachGroupAudience(current.audience||values.audience),name:copyDraftName(current.name),fromAssistant:$('#modalForm').dataset.aiReview==='1'},'Review new copy')};actions.append(copy)}
  if(runtime?.hosted&&runtime.assistant){
   const polish=document.createElement('button');polish.type='button';polish.className='ghost';polish.textContent='Polish with Campaign Writer';actions.append(polish);
   polish.onclick=async()=>{
    const form=$('#modalForm'),current=Object.fromEntries(new FormData(form).entries());
-   const seed={...current,id:form.dataset.id?Number(form.dataset.id):'',updated_at:form.dataset.updatedAt||''};
+   const seed={...values,...current,id:form.dataset.id?Number(form.dataset.id):'',updated_at:form.dataset.updatedAt||''};
    const controls=$$('#modalForm input,#modalForm select,#modalForm textarea,#modalForm button').map(control=>[control,control.disabled]);controls.forEach(([control])=>control.disabled=true);$('#modal').oncancel=e=>e.preventDefault();
    try{await startHostedCampaign(current,null,seed);$('#modal').close();go('assistant')}catch(error){notify(error.message,true)}finally{$('#modal').oncancel=null;controls.forEach(([control,disabled])=>control.disabled=disabled)}
   };

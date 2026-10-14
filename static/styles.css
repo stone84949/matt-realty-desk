@@ -21,3 +21,9 @@
 
 #contactsView .toolbar{flex-wrap:wrap}#contactSearch{min-width:220px}#contactsView .toolbar select{max-width:100%}
 #modalForm .field{min-width:0}#modalForm input:not([type="checkbox"]),#modalForm select{width:100%;min-width:0;max-width:100%}
+
+.group-controls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.group-contact-list{max-height:320px;overflow:auto;border:1px solid var(--line);padding:12px;margin-bottom:24px}.group-contact{display:flex;gap:12px;padding:12px 0;border-bottom:1px solid var(--line);align-items:flex-start}.group-contact input{width:20px;min-width:20px;height:20px;margin-top:5px}.group-contact strong,.group-contact small{display:block}.group-contact small{color:var(--muted);overflow-wrap:anywhere}.excluded-reason{font-style:italic}.group-selected{max-height:240px;overflow:auto}.group-selected>div{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:8px 0}.group-selected span{overflow-wrap:anywhere;min-width:0}#groupSaveStatus{line-height:1.5}#groupTemplateDialog .template-workspace>section{min-width:0}#groupTemplateDialog textarea{min-width:0}@media(max-width:640px){.group-controls{grid-template-columns:1fr}.group-selected>div{align-items:flex-start;flex-direction:column}}
+
+.group-contact span{min-width:0}.group-contact strong{overflow-wrap:anywhere}.campaign-group{grid-column:1/-1;border:1px solid var(--line);border-radius:12px;padding:18px;background:var(--paper)}.campaign-group summary{cursor:pointer}.campaign-group summary span{display:block;margin-top:6px}.campaign-group>.cards{margin-top:20px}
+
+#groupBody{white-space:pre-wrap}
