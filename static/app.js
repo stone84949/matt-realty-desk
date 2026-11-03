@@ -19,7 +19,7 @@ async function api(path, options={}) {
   return data;
 }
 function notify(message, bad=false){const n=$('#notice');n.textContent=message;n.className=bad?'error':'';n.style.display='block';setTimeout(()=>n.style.display='none',3500)}
-function go(view){$$('.nav').forEach(b=>b.classList.toggle('active',b.dataset.view===view));$$('.view').forEach(v=>v.classList.toggle('active',v.id===view+'View'));$('#pageTitle').textContent={today:'Today',contacts:'Contacts',followups:'Follow-ups',campaigns:'Campaigns',assistant:'Assistant',help:'Help'}[view];if(view==='today')loadSummary().catch(e=>notify(e.message,true));if(view==='contacts')loadContacts().catch(e=>notify(e.message,true));if(view==='followups')loadTasks().catch(e=>notify(e.message,true));if(view==='campaigns')loadCampaigns().catch(e=>notify(e.message,true))}
+function go(view){$$('.nav').forEach(b=>b.classList.toggle('active',b.dataset.view===view));$$('.view').forEach(v=>v.classList.toggle('active',v.id===view+'View'));$('#pageTitle').textContent={today:'Today',command:'Command Center',contacts:'Contacts',followups:'Follow-ups',campaigns:'Campaigns',assistant:'Assistant',help:'Help'}[view];if(view==='command')globalThis.openCommandCenter?.();if(view==='today')loadSummary().catch(e=>notify(e.message,true));if(view==='contacts')loadContacts().catch(e=>notify(e.message,true));if(view==='followups')loadTasks().catch(e=>notify(e.message,true));if(view==='campaigns')loadCampaigns().catch(e=>notify(e.message,true))}
 
 async function loadSummary(){
  try{
@@ -259,7 +259,7 @@ $('#backupNow').textContent='Download full snapshot';$$('.local-only').forEach(e
 $('#assistantView .eyebrow').textContent='Optional assistant';$('#assistantView h2').textContent='Assistant unavailable in this hosted demo';$('#assistantModeNote').textContent='Local AI and voice need the local computer. Contacts, reminders and campaign drafts work here without them.';$('#assistantAnswer').textContent='Use Contacts to edit people, Follow-ups to set reminders, and Campaigns to write drafts. Nothing sends email.';$$('#assistantView button, #assistantView textarea, #assistantView input').forEach(el=>el.disabled=true);$('#voiceStatus').textContent='Local AI and voice are unavailable in the hosted demo.';
 
 }
-async function start(){await runtimeReady;applyRuntime();registerWebMCP();const requestedView=new URLSearchParams(location.search).get('view');if(['today','contacts','followups','campaigns','assistant','help'].includes(requestedView))go(requestedView);await loadSummary();}
+async function start(){await runtimeReady;applyRuntime();registerWebMCP();const requestedView=new URLSearchParams(location.search).get('view');if(['today','command','contacts','followups','campaigns','assistant','help'].includes(requestedView))go(requestedView);await loadSummary();}
 start().catch(e=>{$('.status-chip').textContent='Unavailable';notify(e.message,true)});
 
 $('#contactStatus').onchange=async()=>{try{if($('#contactStatus').value==='1')populateTypeFilter(await api('/api/contacts?archived=1'));await loadContacts()}catch(e){notify(e.message,true)}};
