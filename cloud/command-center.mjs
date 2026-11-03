@@ -78,4 +78,3 @@ export async function handleCommandCenter(request,env,identity){
  }
  return json({error:'Command Center route not found.'},404);
 }
-

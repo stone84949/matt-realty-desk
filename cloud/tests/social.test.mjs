@@ -95,4 +95,3 @@ test('Instagram callback cannot re-create credentials after disconnect during pr
  const connect=await call(env,'instagram/connect','POST'),cookie=connect.headers.get('Set-Cookie').split(';')[0],state=new URL((await connect.json()).url).searchParams.get('state');
  const callback=call(env,'instagram/callback?state='+encodeURIComponent(state)+'&code=code','GET',undefined,cookie);await ready;await call(env,'disconnect','POST');release();assert.match((await callback).headers.get('Location'),/connection_failed/);assert.equal((await env.DB.prepare('SELECT count(*) n FROM social_accounts').first()).n,0);
 });
-

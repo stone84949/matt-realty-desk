@@ -11,4 +11,3 @@ CREATE TABLE IF NOT EXISTS social_oauth (
  state TEXT PRIMARY KEY, identity TEXT NOT NULL, nonce TEXT NOT NULL,
  expires_at INTEGER NOT NULL, pending TEXT
 );
-
