@@ -214,8 +214,11 @@ export async function handleApi(request, env) {
             if (path === '/api/backup') {
                 fields(data, {});
                 const tables = ['contacts', 'tasks', 'activities', 'campaigns'];
+                const extras=['command_research','command_jobs','social_snapshots'];
+                const installed=(await DB.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name IN ('command_research','command_jobs','social_snapshots')").all()).results;
+                tables.push(...extras.filter(name=>installed.some(row=>row.name===name)));
                 const results = await DB.batch(tables.map(t => statement(DB, `SELECT * FROM ${t} ORDER BY id`)));
-                return json({ schema_version: 1, ...Object.fromEntries(tables.map((t, i) => [t, results[i].results])), created_at: stamp() }, 200, { 'Content-Disposition': 'attachment; filename=matt-realty-backup.json' });
+                return json({ schema_version: tables.length>4?2:1, ...Object.fromEntries(tables.map((t, i) => [t, results[i].results])), created_at: stamp() }, 200, { 'Content-Disposition': 'attachment; filename=matt-realty-backup.json' });
             }
         }
         if (method === 'PATCH') {
